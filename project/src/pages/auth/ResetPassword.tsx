@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router-dom";
-import { Eye, EyeOff, AlertCircle, ArrowLeft, Key } from "lucide-react";
-import api from "../../lib/api";
+import { useNavigate, useLocation, Link } from "react-router-dom";
+import { Eye, EyeOff, Key, AlertCircle, ArrowLeft } from "lucide-react";
+import api from "../../lib/publicApi";
 
 const ResetPassword: React.FC = () => {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { state } = useLocation();
+  const email = state?.email;
 
   const [formData, setFormData] = useState({
     token: "",
@@ -14,203 +15,138 @@ const ResetPassword: React.FC = () => {
   });
 
   const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-
-  const email = location?.state?.email ?? "";
+  const [loading, setLoading] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
-    if (error) setError("");
+    setFormData((p) => ({ ...p, [e.target.name]: e.target.value }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const { token, password, confirmPassword } = formData;
 
     if (!token || !password || !confirmPassword) {
-      setError("All fields are required.");
-      return;
+      return setError("All fields are required.");
     }
-
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long.");
-      return;
+      return setError("Password must be at least 8 characters.");
     }
-
     if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      return;
+      return setError("Passwords do not match.");
     }
 
-    setIsLoading(true);
+    setLoading(true);
     try {
-      await api.post("/resetPassword", {
-        token,
-        newPassword: password,
-      });
-
-      setMessage("✅ Password reset successfully!");
+      await api.post("/resetPassword", { token, newPassword: password });
+      setMessage("✅ Password reset successful!");
       setTimeout(() => {
         navigate("/login", {
           state: { message: "Password reset successfully. Please login." },
         });
       }, 2000);
     } catch (err: any) {
-      if (err?.response?.status === 401) {
-        setError("Token expired or invalid.");
-      } else {
-        setError("Server error. Please try again.");
-      }
+      setError("Token expired or invalid.");
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  const renderInput = (
+  const renderPasswordInput = (
     name: string,
     label: string,
-    type: "text" | "password",
-    value: string,
-    toggleVisibility?: () => void,
-    show?: boolean
+    show: boolean,
+    toggle: () => void
   ) => (
     <div>
-      <label htmlFor={name} className='block text-sm font-medium text-gray-700'>
-        {label}
-      </label>
-      <div className='mt-1 relative'>
+      <label className='block text-sm font-medium'>{label}</label>
+      <div className='relative mt-1'>
         <input
-          id={name}
           name={name}
-          type={show !== undefined ? (show ? "text" : "password") : type}
-          value={value}
+          type={show ? "text" : "password"}
+          value={(formData as any)[name]}
           onChange={handleChange}
-          required
-          className='block w-full pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500'
-          placeholder={label}
+          className='w-full py-2 pr-10 border rounded-md'
         />
-        {toggleVisibility && (
-          <button
-            type='button'
-            onClick={toggleVisibility}
-            className='absolute inset-y-0 right-0 pr-3 flex items-center'
-          >
-            {show ? (
-              <EyeOff className='h-4 w-4 text-gray-400' />
-            ) : (
-              <Eye className='h-4 w-4 text-gray-400' />
-            )}
-          </button>
-        )}
+        <button
+          type='button'
+          onClick={toggle}
+          className='absolute right-3 top-2.5'
+        >
+          {show ? (
+            <EyeOff className='w-5 h-5 text-gray-400' />
+          ) : (
+            <Eye className='w-5 h-5 text-gray-400' />
+          )}
+        </button>
       </div>
     </div>
   );
 
   return (
-    <div className='min-h-screen bg-gradient-to-br from-blue-50 via-white to-blue-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8'>
+    <div className='min-h-screen flex items-center justify-center bg-blue-50 px-4'>
       <div className='max-w-md w-full space-y-8'>
-        <div>
-          <h2 className='mt-6 text-center text-3xl font-extrabold text-gray-900'>
-            Set New Password
-          </h2>
-          <p className='mt-2 text-center text-sm text-gray-600'>
-            Enter the reset token sent to your email and your new password.
-          </p>
-        </div>
+        <h2 className='text-2xl font-bold text-center'>Set New Password</h2>
 
-        <div className='bg-white rounded-xl shadow-lg p-8'>
+        <form
+          onSubmit={handleSubmit}
+          className='bg-white p-6 rounded-xl shadow space-y-6'
+        >
           {email && (
-            <div className='mb-4 p-3 bg-blue-50 rounded-md'>
-              <p className='text-sm text-blue-800'>
-                Token sent to: <strong>{email}</strong>
-              </p>
+            <p className='text-blue-700 text-sm'>
+              Reset token sent to: <strong>{email}</strong>
+            </p>
+          )}
+
+          <div>
+            <label className='block text-sm font-medium'>Reset Token</label>
+            <div className='relative mt-1'>
+              <input
+                name='token'
+                value={formData.token}
+                onChange={handleChange}
+                className='w-full pl-10 py-2 border rounded-md'
+              />
+              <Key className='absolute left-3 top-2.5 h-5 w-5 text-gray-400' />
+            </div>
+          </div>
+
+          {renderPasswordInput("password", "New Password", showPassword, () =>
+            setShowPassword(!showPassword)
+          )}
+          {renderPasswordInput(
+            "confirmPassword",
+            "Confirm Password",
+            showConfirm,
+            () => setShowConfirm(!showConfirm)
+          )}
+
+          {message && <div className='text-green-600 text-sm'>{message}</div>}
+          {error && (
+            <div className='text-red-600 text-sm flex items-center'>
+              <AlertCircle className='w-4 h-4 mr-1' />
+              {error}
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className='space-y-6'>
-            {/* Token */}
-            <div>
-              <label
-                htmlFor='token'
-                className='block text-sm font-medium text-gray-700'
-              >
-                Reset Token
-              </label>
-              <div className='mt-1 relative'>
-                <input
-                  id='token'
-                  name='token'
-                  type='text'
-                  required
-                  value={formData.token}
-                  onChange={handleChange}
-                  className='block w-full pl-10 pr-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500'
-                  placeholder='Enter your token'
-                />
-                <div className='absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none'>
-                  <Key className='h-5 w-5 text-gray-400' />
-                </div>
-              </div>
-            </div>
+          <button
+            type='submit'
+            disabled={loading}
+            className='w-full py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700'
+          >
+            {loading ? "Resetting..." : "Reset Password"}
+          </button>
 
-            {/* New Password */}
-            {renderInput(
-              "password",
-              "New Password",
-              "password",
-              formData.password,
-              () => setShowPassword(!showPassword),
-              showPassword
-            )}
-
-            {/* Confirm Password */}
-            {renderInput(
-              "confirmPassword",
-              "Confirm New Password",
-              "password",
-              formData.confirmPassword,
-              () => setShowConfirmPassword(!showConfirmPassword),
-              showConfirmPassword
-            )}
-
-            {message && (
-              <div className='bg-green-50 border border-green-200 rounded-md p-3'>
-                <p className='text-sm text-green-600'>{message}</p>
-              </div>
-            )}
-
-            {error && (
-              <div className='bg-red-50 border border-red-200 rounded-md p-3 flex items-center space-x-2'>
-                <AlertCircle className='h-5 w-5 text-red-500' />
-                <p className='text-sm text-red-600'>{error}</p>
-              </div>
-            )}
-
-            <div>
-              <button
-                type='submit'
-                disabled={isLoading}
-                className='w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50'
-              >
-                {isLoading ? "Resetting Password..." : "Reset Password"}
-              </button>
-            </div>
-          </form>
-
-          <div className='mt-6 pt-4 border-t border-gray-200'>
-            <Link
-              to='/login'
-              className='flex items-center justify-center text-sm text-gray-600 hover:text-gray-900'
-            >
-              <ArrowLeft className='h-4 w-4 mr-1' />
-              Back to Login
-            </Link>
-          </div>
-        </div>
+          <Link
+            to='/login'
+            className='block mt-4 text-center text-sm text-blue-600 hover:underline'
+          >
+            <ArrowLeft className='inline h-4 w-4 mr-1' />
+            Back to Login
+          </Link>
+        </form>
       </div>
     </div>
   );

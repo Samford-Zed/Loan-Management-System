@@ -1,5 +1,5 @@
-import axios from "axios";
-import api from "../lib/api"; // this has baseURL = http://localhost:8081/api/lms
+import api from "../lib/api"; // Protected: baseURL = http://localhost:8081/api/lms + JWT
+import publicApi from "../lib/publicApi"; // Public: baseURL = http://localhost:8081
 
 /** === Backend shape from /api/lms/profile === */
 export type RawProfile = {
@@ -23,7 +23,7 @@ export type AppUser = {
   bankAccountNumber?: string;
 };
 
-/** Map backend profile -> UI user */
+/** === Map backend profile -> UI shape === */
 function mapProfile(p: RawProfile): AppUser {
   return {
     id: String(p.id),
@@ -36,16 +36,13 @@ function mapProfile(p: RawProfile): AppUser {
   };
 }
 
-/** Root URL for login/reset/register (no /api/lms prefix!) */
-const AUTH_BASE = "http://localhost:8081";
-
 /** === LOGIN === */
 export async function login(
   username: string,
   password: string
 ): Promise<{ ok: true } | { ok: false; message?: string }> {
   try {
-    const { data, headers } = await axios.post(`${AUTH_BASE}/login`, {
+    const { data, headers } = await publicApi.post("/login", {
       username,
       password,
     });
@@ -61,7 +58,7 @@ export async function login(
 
     localStorage.setItem("token", token);
 
-    // Now fetch profile using token
+    // Now fetch profile using the JWT
     const { data: profile } = await api.get<RawProfile>("/profile");
     const user = mapProfile(profile);
     localStorage.setItem("auth_user", JSON.stringify(user));
@@ -82,29 +79,26 @@ export async function register(payload: {
   email: string;
   password: string;
 }) {
-  await axios.post(`${AUTH_BASE}/register`, payload);
+  await publicApi.post("/register", payload);
   return { ok: true as const };
 }
 
 /** === FORGOT PASSWORD === */
 export async function forgotPassword(email: string) {
-  return axios.post(`${AUTH_BASE}/forgotPassword`, { email });
+  return publicApi.post("/forgotPassword", { email });
 }
 
 /** === RESET PASSWORD === */
 export async function resetPassword(token: string, newPassword: string) {
-  return axios.post(`${AUTH_BASE}/resetPassword`, {
-    token,
-    newPassword,
-  });
+  return publicApi.post("/resetPassword", { token, newPassword });
 }
 
-/** === CHANGE PASSWORD (JWT protected) === */
+/** === CHANGE PASSWORD (JWT required) === */
 export async function updatePassword(oldPassword: string, newPassword: string) {
   return api.put("/updatePassword", { oldPassword, newPassword });
 }
 
-/** === Load current user from backend === */
+/** === Load current user from backend (JWT) === */
 export async function loadMe(): Promise<AppUser | null> {
   try {
     const { data } = await api.get<RawProfile>("/profile");

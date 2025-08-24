@@ -1,26 +1,19 @@
 import React, { useState } from "react";
-import { X, Eye, EyeOff, Lock } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
+import { Eye, EyeOff, X, Lock } from "lucide-react";
 
-interface ChangePasswordModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
 }
 
-const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
-  isOpen,
-  onClose,
-}) => {
+const ChangePasswordModal: React.FC<Props> = ({ isOpen, onClose }) => {
   const { updatePassword } = useAuth();
 
-  const [currentPassword, setCurrentPassword] = useState("");
+  const [oldPassword, setOldPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [visible, setVisible] = useState({
-    current: false,
-    new: false,
-    confirm: false,
-  });
+  const [show, setShow] = useState({ old: false, new: false, confirm: false });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -28,40 +21,30 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   if (!isOpen) return null;
 
-  const toggleVisibility = (field: keyof typeof visible) =>
-    setVisible((prev) => ({ ...prev, [field]: !prev[field] }));
+  const toggle = (key: keyof typeof show) =>
+    setShow((prev) => ({ ...prev, [key]: !prev[key] }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
 
-    if (newPassword !== confirmPassword) {
-      setError("New passwords do not match");
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      setError("New password must be at least 8 characters long");
-      return;
-    }
+    if (newPassword !== confirmPassword)
+      return setError("Passwords do not match.");
+    if (newPassword.length < 8) return setError("Password too short.");
 
     setLoading(true);
     try {
-      const result = await updatePassword(currentPassword, newPassword);
-      if (result) {
-        setSuccess(true);
-        setTimeout(() => {
-          setCurrentPassword("");
-          setNewPassword("");
-          setConfirmPassword("");
-          setSuccess(false);
-          onClose();
-        }, 2000);
-      } else {
-        setError("Incorrect current password");
-      }
+      await updatePassword(oldPassword, newPassword);
+      setSuccess(true);
+      setTimeout(() => {
+        setOldPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+        setSuccess(false);
+        onClose();
+      }, 1500);
     } catch {
-      setError("Failed to update password. Please try again.");
+      setError("Incorrect password or server error.");
     } finally {
       setLoading(false);
     }
@@ -69,33 +52,29 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
 
   const renderInput = (
     label: string,
-    value: string,
-    setValue: (val: string) => void,
-    isVisible: boolean,
-    toggle: () => void,
-    name: keyof typeof visible
+    val: string,
+    setVal: (v: string) => void,
+    visible: boolean,
+    toggleFn: () => void
   ) => (
     <div>
-      <label className='block text-sm font-medium text-gray-700 mb-1'>
-        {label}
-      </label>
+      <label className='text-sm block mb-1'>{label}</label>
       <div className='relative'>
         <input
-          type={isVisible ? "text" : "password"}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
-          className='w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 pr-10'
-          required
+          type={visible ? "text" : "password"}
+          value={val}
+          onChange={(e) => setVal(e.target.value)}
+          className='w-full border rounded-md py-2 px-3 pr-10'
         />
         <button
           type='button'
-          className='absolute inset-y-0 right-0 pr-3 flex items-center'
-          onClick={toggle}
+          onClick={toggleFn}
+          className='absolute top-2 right-3'
         >
-          {isVisible ? (
-            <EyeOff className='h-4 w-4 text-gray-400' />
+          {visible ? (
+            <EyeOff className='w-4 h-4 text-gray-400' />
           ) : (
-            <Eye className='h-4 w-4 text-gray-400' />
+            <Eye className='w-4 h-4 text-gray-400' />
           )}
         </button>
       </div>
@@ -103,75 +82,58 @@ const ChangePasswordModal: React.FC<ChangePasswordModalProps> = ({
   );
 
   return (
-    <div className='fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4'>
-      <div className='bg-white rounded-xl shadow-lg max-w-md w-full'>
-        <div className='flex items-center justify-between p-6 border-b'>
-          <h2 className='text-xl font-semibold text-gray-900 flex items-center'>
-            <Lock className='h-5 w-5 mr-2' />
+    <div className='fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50'>
+      <div className='bg-white p-6 rounded-lg w-full max-w-md'>
+        <div className='flex items-center justify-between mb-4'>
+          <h3 className='flex items-center text-lg font-semibold'>
+            <Lock className='w-5 h-5 mr-2' />
             Change Password
-          </h2>
-          <button
-            onClick={onClose}
-            className='text-gray-400 hover:text-gray-600 transition-colors'
-          >
-            <X className='h-5 w-5' />
+          </h3>
+          <button onClick={onClose}>
+            <X className='w-5 h-5 text-gray-500 hover:text-gray-700' />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className='p-6 space-y-4'>
-          {error && (
-            <div className='bg-red-50 border border-red-200 rounded-lg p-3'>
-              <p className='text-sm text-red-600'>{error}</p>
-            </div>
-          )}
-
-          {success && (
-            <div className='bg-green-50 border border-green-200 rounded-lg p-3'>
-              <p className='text-sm text-green-600'>
-                ✅ Password updated successfully!
-              </p>
-            </div>
-          )}
-
+        <form onSubmit={handleSubmit} className='space-y-4'>
           {renderInput(
             "Current Password",
-            currentPassword,
-            setCurrentPassword,
-            visible.current,
-            () => toggleVisibility("current"),
-            "current"
+            oldPassword,
+            setOldPassword,
+            show.old,
+            () => toggle("old")
           )}
-
           {renderInput(
             "New Password",
             newPassword,
             setNewPassword,
-            visible.new,
-            () => toggleVisibility("new"),
-            "new"
+            show.new,
+            () => toggle("new")
           )}
-
           {renderInput(
-            "Confirm New Password",
+            "Confirm Password",
             confirmPassword,
             setConfirmPassword,
-            visible.confirm,
-            () => toggleVisibility("confirm"),
-            "confirm"
+            show.confirm,
+            () => toggle("confirm")
+          )}
+
+          {error && <p className='text-sm text-red-600'>{error}</p>}
+          {success && (
+            <p className='text-sm text-green-600'>✅ Password updated!</p>
           )}
 
           <div className='flex space-x-3 pt-4'>
             <button
               type='submit'
               disabled={loading}
-              className='flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors'
+              className='flex-1 bg-blue-600 text-white py-2 rounded-md hover:bg-blue-700'
             >
               {loading ? "Updating..." : "Update Password"}
             </button>
             <button
               type='button'
               onClick={onClose}
-              className='px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 transition-colors'
+              className='py-2 px-4 border rounded-md'
             >
               Cancel
             </button>
