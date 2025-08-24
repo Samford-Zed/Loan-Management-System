@@ -1,75 +1,33 @@
+// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
+import {
+  login as authLogin,
+  register as authRegister,
+  loadMe as authLoadMe,
+  logout as authLogout,
+  AppUser,
+} from "../services/auth";
 
-export interface User {
-  id: string;
-  username: string;
-  firstName: string;
-  lastName: string;
-  role: "admin" | "customer";
-  accountVerified: boolean;
-  bankAccountNumber?: string;
-}
+export type Role = "admin" | "customer";
 
-interface RegisterData {
-  firstName: string;
-  lastName: string;
+type RegisterData = {
+  fullName: string;
   username: string;
+  email: string;
   password: string;
-}
+};
 
-interface AuthContextType {
-  user: User | null;
+type AuthContextType = {
+  user: AppUser | null;
   loading: boolean;
-  login: (
-    username: string,
-    password: string,
-    role: "admin" | "customer"
-  ) => Promise<boolean>;
+  // keep role param for backward compatibility (ignored; role comes from backend)
+  login: (username: string, password: string, role?: Role) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
-  updateUser: (data: Partial<User>) => void;
-}
+  updateUser: (data: Partial<AppUser>) => void;
+};
 
-/** ---- Mock directory ----
- * admin / admin123    -> admin
- * john  / john123     -> customer (verified)
- * sara  / sara123     -> customer (NOT verified)
- */
-const MOCK_USERS: Array<User & { password: string }> = [
-  {
-    id: "u-admin",
-    username: "admin",
-    firstName: "Admin",
-    lastName: "User",
-    role: "admin",
-    accountVerified: true,
-    bankAccountNumber: "100088777766",
-    password: "admin123",
-  },
-  {
-    id: "u-john",
-    username: "john",
-    firstName: "John",
-    lastName: "Doe",
-    role: "customer",
-    accountVerified: true,
-    bankAccountNumber: "1000890123456",
-    password: "john123",
-  },
-  {
-    id: "u-sara",
-    username: "sara",
-    firstName: "Sara",
-    lastName: "Lee",
-    role: "customer",
-    accountVerified: false,
-    bankAccountNumber: undefined,
-    password: "sara123",
-  },
-];
-
-const LS_KEY = "auth_user";
-
+const LS_USER = "auth_user";
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const useAuth = () => {
@@ -81,55 +39,65 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   children,
 }) => {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Hydrate on mount
+  // On mount: if we have a token, try to refresh profile from backend; else hydrate from LS
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(LS_KEY);
-      if (raw) setUser(JSON.parse(raw));
-    } finally {
-      setLoading(false);
-    }
+    const init = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        if (token) {
+          const me = await authLoadMe();
+          if (me) {
+            setUser(me);
+            setLoading(false);
+            return;
+          }
+        }
+        // fallback to cached user if no token or loadMe failed
+        const cached = localStorage.getItem(LS_USER);
+        if (cached) setUser(JSON.parse(cached));
+      } finally {
+        setLoading(false);
+      }
+    };
+    init();
   }, []);
 
+  /** Login -> stores token -> fetch /api/lms/profile -> store user */
   const login = async (
     username: string,
     password: string,
-    role: "admin" | "customer"
+    _role?: Role
   ): Promise<boolean> => {
-    await new Promise((r) => setTimeout(r, 400)); // mock latency
-    const found = MOCK_USERS.find(
-      (u) =>
-        u.username.toLowerCase() === username.toLowerCase() &&
-        u.password === password &&
-        u.role === role
-    );
-    if (!found) return false;
+    const res = await authLogin(username, password);
+    if (!("ok" in res) || !res.ok) return false;
 
-    const { password: _pw, ...publicUser } = found;
-    setUser(publicUser);
-    localStorage.setItem(LS_KEY, JSON.stringify(publicUser));
+    // auth.login already fetched /api/lms/profile and stored auth_user
+    const raw = localStorage.getItem(LS_USER);
+    setUser(raw ? (JSON.parse(raw) as AppUser) : null);
     return true;
   };
 
-  const register = async (_data: RegisterData): Promise<boolean> => {
-    await new Promise((r) => setTimeout(r, 400));
-    // keep simple for now; backend will own this later
+  /** Register with fullName/username/email/password */
+  const register = async (data: RegisterData): Promise<boolean> => {
+    await authRegister(data);
     return true;
   };
 
+  /** Logout: clear token + user */
   const logout = () => {
+    authLogout();
     setUser(null);
-    localStorage.removeItem(LS_KEY);
   };
 
-  const updateUser = (data: Partial<User>) => {
+  /** Merge updates locally (useful after bank verification, etc.) */
+  const updateUser = (partial: Partial<AppUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, ...data };
-      localStorage.setItem(LS_KEY, JSON.stringify(next));
+      const next = { ...prev, ...partial };
+      localStorage.setItem(LS_USER, JSON.stringify(next));
       return next;
     });
   };

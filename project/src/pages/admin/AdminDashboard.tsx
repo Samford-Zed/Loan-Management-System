@@ -1,31 +1,101 @@
-import React from "react";
-import { Link } from "react-router-dom";
+import React, { useEffect, useMemo, useState } from "react";
 import {
+  CreditCard,
   Users,
   Clock,
   CheckCircle,
   TrendingUp,
-  ArrowRight,
 } from "lucide-react";
-import { useLoan } from "../../contexts/LoanContext";
+import {
+  fetchAllApplications,
+  updateApplicationStatus,
+  type LoanApplication,
+} from "../../api/loanApi";
+
+const getStatusColor = (status: string) => {
+  switch (status) {
+    case "approved":
+      return "bg-green-100 text-green-800";
+    case "rejected":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-yellow-100 text-yellow-800";
+  }
+};
 
 const AdminDashboard: React.FC = () => {
-  const { applications } = useLoan();
+  const [applications, setApplications] = useState<LoanApplication[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
 
-  const pending = applications.filter((a) => a.status === "pending");
-  const approved = applications.filter((a) => a.status === "approved");
-  const totalDisbursed = approved.reduce((sum, a) => sum + a.amount, 0);
+  const pendingApplications = useMemo(
+    () => applications.filter((a) => a.status === "pending"),
+    [applications]
+  );
+  const approvedLoans = useMemo(
+    () => applications.filter((a) => a.status === "approved"),
+    [applications]
+  );
+  const totalDisbursed = useMemo(
+    () => approvedLoans.reduce((sum, a) => sum + a.amount, 0),
+    [approvedLoans]
+  );
+
+  const reload = async () => {
+    setLoading(true);
+    setErr(null);
+    try {
+      const data = await fetchAllApplications();
+      setApplications(data);
+    } catch (e: any) {
+      setErr(
+        e?.response?.data?.message ||
+          e?.message ||
+          "Failed to load applications"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    reload();
+  }, []);
+
+  const handleStatusUpdate = async (
+    id: string,
+    status: "approved" | "rejected",
+    reason?: string
+  ) => {
+    // optimistic UI
+    const prev = applications;
+    setApplications((prevApps) =>
+      prevApps.map((a) => (a.id === id ? { ...a, status, reason } : a))
+    );
+
+    try {
+      await updateApplicationStatus(id, status, reason);
+      // On approval, your backend disburses immediately.
+    } catch (e) {
+      // revert on error and surface message
+      setApplications(prev);
+      await reload();
+    }
+  };
+
+  const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
   return (
     <div className='min-h-screen bg-gray-50 py-8'>
       <div className='max-w-7xl mx-auto px-4 sm:px-6 lg:px-8'>
-        {/* Header */}
         <div className='mb-8'>
           <h1 className='text-3xl font-bold text-gray-900'>Admin Dashboard</h1>
-          <p className='text-gray-600 mt-1'>System overview and key metrics</p>
+          <p className='text-gray-600 mt-1'>
+            Manage loan applications and monitor system performance
+          </p>
         </div>
 
-        {/* KPI Cards */}
+        {/* Stats */}
         <div className='grid grid-cols-1 md:grid-cols-4 gap-6 mb-8'>
           <div className='bg-white rounded-lg shadow-sm p-6'>
             <div className='flex items-center'>
@@ -53,13 +123,13 @@ const AdminDashboard: React.FC = () => {
                   Pending Review
                 </p>
                 <p className='text-2xl font-bold text-gray-900'>
-                  {pending.length}
+                  {pendingApplications.length}
                 </p>
               </div>
             </div>
-            {pending.length > 0 && (
+            {pendingApplications.length > 0 && (
               <div className='absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center'>
-                {pending.length}
+                {pendingApplications.length}
               </div>
             )}
           </div>
@@ -74,7 +144,7 @@ const AdminDashboard: React.FC = () => {
                   Approved Loans
                 </p>
                 <p className='text-2xl font-bold text-gray-900'>
-                  {approved.length}
+                  {approvedLoans.length}
                 </p>
               </div>
             </div>
@@ -90,31 +160,155 @@ const AdminDashboard: React.FC = () => {
                   Total Disbursed
                 </p>
                 <p className='text-2xl font-bold text-gray-900'>
-                  {totalDisbursed.toLocaleString()} Br
+                  ${totalDisbursed.toLocaleString()}
                 </p>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Manage Applications CTA */}
-        <div className='bg-white rounded-lg shadow-sm p-6 flex items-center justify-between'>
-          <div>
+        {/* Table */}
+        <div className='bg-white rounded-lg shadow-sm overflow-hidden'>
+          <div className='px-6 py-4 border-b border-gray-200 flex items-center justify-between'>
             <h2 className='text-lg font-semibold text-gray-900'>
-              Manage Applications
+              Loan Applications
             </h2>
-            <p className='text-gray-600 text-sm'>
-              Review, approve, or reject customer loan requests on the
-              applications page.
-            </p>
+            {pendingApplications.length > 0 && (
+              <span className='bg-red-100 text-red-800 px-2 py-1 rounded-full text-sm font-medium'>
+                {pendingApplications.length} Pending Review
+              </span>
+            )}
           </div>
-          <Link
-            to='/admin/applications'
-            className='inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition'
-          >
-            Go to Applications
-            <ArrowRight className='h-4 w-4' />
-          </Link>
+
+          {err && (
+            <div className='px-6 py-3 text-sm text-red-700 bg-red-50 border-b border-red-100'>
+              {err}
+            </div>
+          )}
+
+          {loading ? (
+            <div className='p-12 text-center text-gray-600'>Loading…</div>
+          ) : applications.length === 0 ? (
+            <div className='p-12 text-center'>
+              <CreditCard className='h-12 w-12 text-gray-400 mx-auto mb-4' />
+              <h3 className='text-lg font-medium text-gray-900 mb-2'>
+                No applications yet
+              </h3>
+              <p className='text-gray-600'>
+                They’ll appear as soon as customers apply.
+              </p>
+            </div>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='min-w-full divide-y divide-gray-200'>
+                <thead className='bg-gray-50'>
+                  <tr>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Customer
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Purpose
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Amount
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Duration
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      EMI
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Status
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Applied
+                    </th>
+                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className='bg-white divide-y divide-gray-200'>
+                  {applications.map((a) => (
+                    <tr
+                      key={a.id}
+                      className={`hover:bg-gray-50 ${
+                        a.status === "pending" ? "bg-yellow-50" : ""
+                      }`}
+                    >
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <div className='text-sm font-medium text-gray-900'>
+                          {a.customerName}
+                        </div>
+                        <div className='text-sm text-gray-500'>
+                          Account: ****{a.accountNumber.slice(-4)}
+                        </div>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                        {a.purpose}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900'>
+                        ${a.amount.toLocaleString()}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                        {a.duration} months
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                        ${a.emi.toLocaleString()}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap'>
+                        <span
+                          className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                            a.status
+                          )}`}
+                        >
+                          {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
+                        </span>
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
+                        {formatDate(a.appliedDate)}
+                      </td>
+                      <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+                        {a.status === "pending" && (
+                          <div className='flex space-x-2'>
+                            <button
+                              onClick={() =>
+                                handleStatusUpdate(a.id, "approved")
+                              }
+                              className='bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700 transition-colors'
+                            >
+                              Approve & Disburse
+                            </button>
+                            {/* <button
+                              onClick={() => {
+                                const reason =
+                                  window.prompt(
+                                    "Reason for rejection (optional):"
+                                  ) || undefined;
+                                handleStatusUpdate(a.id, "rejected", reason);
+                              }}
+                              className='bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors'
+                            >
+                              Reject
+                            </button> */}
+                          </div>
+                        )}
+                        {a.status === "approved" && (
+                          <span className='text-green-600 text-xs font-medium'>
+                            Disbursed
+                          </span>
+                        )}
+                        {a.status === "rejected" && (
+                          <span className='text-red-600 text-xs'>Rejected</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>

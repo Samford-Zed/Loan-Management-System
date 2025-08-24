@@ -123,7 +123,7 @@ const Login: React.FC = () => {
                 value={formData.username}
                 onChange={handleChange}
                 className='mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500'
-                placeholder='admin | john | sara'
+                placeholder='username'
                 autoComplete='username'
               />
             </div>
@@ -197,26 +197,6 @@ const Login: React.FC = () => {
               <ArrowLeft className='h-4 w-4 mr-1' />
               Back to Home
             </Link>
-          </div>
-
-          {/* Demo creds hint */}
-          <div className='mt-6 grid grid-cols-1 gap-2 text-sm'>
-            <div className='p-3 bg-blue-50 rounded'>
-              <p className='text-blue-800'>
-                <b>Admin</b> — user: <b>admin</b>, pass: <b>admin123</b>
-              </p>
-            </div>
-            <div className='p-3 bg-green-50 rounded'>
-              <p className='text-green-800'>
-                <b>John (verified)</b> — user: <b>john</b>, pass: <b>john123</b>
-              </p>
-            </div>
-            <div className='p-3 bg-yellow-50 rounded'>
-              <p className='text-yellow-800'>
-                <b>Sara (unverified)</b> — user: <b>sara</b>, pass:{" "}
-                <b>sara123</b>
-              </p>
-            </div>
           </div>
         </div>
       </div>

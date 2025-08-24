@@ -9,8 +9,10 @@ import {
   Lock,
   History,
 } from "lucide-react";
+import { displayName } from "../../utils/displayName";
 import { useAuth } from "../../contexts/AuthContext";
 import ChangePasswordModal from "../auth/ChangePasswordModal";
+
 const Profile: React.FC = () => {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("personal");
@@ -62,7 +64,7 @@ const Profile: React.FC = () => {
             </div>
             <div>
               <h1 className='text-2xl font-bold text-gray-900'>
-                {user?.firstName} {user?.lastName}
+                {displayName(user)}
               </h1>
               <p className='text-gray-600 capitalize'>{user?.role}</p>
             </div>
@@ -110,7 +112,7 @@ const Profile: React.FC = () => {
                           Full Name
                         </label>
                         <p className='text-gray-900'>
-                          {user?.firstName} {user?.lastName}
+                          {user?.fullName || displayName(user)}
                         </p>
                       </div>
                       <div>

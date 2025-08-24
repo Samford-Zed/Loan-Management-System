@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from "react";
+// src/pages/customer/Dashboard.tsx
+import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -14,6 +15,15 @@ import {
 } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
 import { useLoan } from "../../contexts/LoanContext";
+import {
+  fetchMyApplications as apiFetchMyApplications,
+  type LoanApplication as ApiLoanApplication,
+} from "../../api/loanApi";
+import {
+  repayLoan,
+  getMyApplications,
+  getMyActiveLoans,
+} from "../../services/loan";
 
 type LoanApplication = {
   id: string;
@@ -21,17 +31,29 @@ type LoanApplication = {
   amount: number;
   duration: number; // months
   emi: number;
-  status: "pending" | "approved" | "rejected" | string;
-  appliedDate: string; // ISO string
+  status: "pending" | "approved" | "rejected";
+  appliedDate?: string; // ISO string
 };
 
 type DashboardProps = { showOnlyLoans?: boolean };
 
+const norm = (s: string) => String(s || "").toLowerCase();
+
+const getStatusColor = (status: string) => {
+  switch (norm(status)) {
+    case "approved":
+      return "bg-green-100 text-green-800";
+    case "rejected":
+      return "bg-red-100 text-red-800";
+    default:
+      return "bg-yellow-100 text-yellow-800"; // pending/unknown
+  }
+};
+
 const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const { getCustomerApplications, addRepayment, getCustomerRepayments } =
-    useLoan();
+  const { addRepayment, getCustomerRepayments } = useLoan();
 
   // UI state
   const [selectedLoan, setSelectedLoan] = useState<LoanApplication | null>(
@@ -43,37 +65,77 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [showVerifyModal, setShowVerifyModal] = useState(false);
 
-  const goToVerify = () => navigate("/link-account");
+  // Backend data
+  const [appsLoading, setAppsLoading] = useState(false);
+  const [appsError, setAppsError] = useState<string | null>(null);
+  const [applications, setApplications] = useState<LoanApplication[]>([]);
+  // Add this at line ~75
+  const [loans, setLoans] = useState<LoanDto[]>([]);
 
-  // Data
-  const applications: LoanApplication[] = user
-    ? getCustomerApplications(user.id)
-    : [];
   const repayments = user ? getCustomerRepayments(user.id) : [];
 
-  const norm = (s: string) => String(s || "").toLowerCase();
+  const goToVerify = () => navigate("/link-account");
 
-  const activeLoans = useMemo(
-    () => applications.filter((a) => norm(a.status) === "approved"),
-    [applications]
-  );
+  // Helper mapper from API -> UI
+  const mapApp = (a: ApiLoanApplication): LoanApplication => ({
+    id: a.id,
+    purpose: a.purpose ?? "",
+    amount: Number.isFinite(a.amount) ? a.amount : Number(a.amount ?? 0),
+    duration: a.duration ?? 0,
+    emi: Number.isFinite(a.emi) ? a.emi : Number(a.emi ?? 0),
+    status: a.status ?? "pending",
+    appliedDate: a.appliedDate ?? undefined,
+  });
 
-  const totalOutstanding = activeLoans.reduce(
-    (sum, loan) => sum + (loan.amount || 0),
-    0
-  );
-  const nextEMI = activeLoans.length > 0 ? activeLoans[0].emi : 0;
+  // Load profile first (via AuthProvider), THEN fetch applications using the account number.
+  useEffect(() => {
+    const run = async () => {
+      if (authLoading) return; // wait for profile
+      // If no user or not verified or no account number → don't call applications API
+      if (!user || !user.accountVerified || !user.bankAccountNumber) {
+        setApplications([]);
+        setAppsLoading(false);
+        setAppsError(null);
+        return;
+      }
 
-  const getStatusColor = (status: string) => {
-    switch (norm(status)) {
-      case "approved":
-        return "bg-green-100 text-green-800";
-      case "rejected":
-        return "bg-red-100 text-red-800";
-      default:
-        return "bg-yellow-100 text-yellow-800";
-    }
-  };
+      setAppsLoading(true);
+      setAppsError(null);
+      try {
+        const [appsData, loansData] = await Promise.all([
+          apiFetchMyApplications(user.bankAccountNumber),
+          getMyActiveLoans(user.bankAccountNumber),
+        ]);
+        setApplications((appsData || []).map(mapApp));
+        setLoans(loansData || []);
+      } catch (e: any) {
+        const msg =
+          e?.response?.data?.message ||
+          e?.response?.data ||
+          e?.message ||
+          "Failed to load applications.";
+        setAppsError(String(msg));
+      } finally {
+        setAppsLoading(false);
+      }
+    };
+    run();
+  }, [authLoading, user?.accountVerified, user?.bankAccountNumber, user?.id]);
+
+  const activeLoans = loans;
+
+  const totalOutstanding = useMemo(() => {
+    return activeLoans.reduce((sum, loan) => {
+      const raw = loan?.remainingAmount ?? 0;
+      const remaining = typeof raw === "string" ? parseFloat(raw) : Number(raw);
+
+      return sum + (isNaN(remaining) ? 0 : remaining);
+    }, 0);
+  }, [activeLoans]);
+  const nextEMI =
+    activeLoans.length > 0 && activeLoans[0]?.emi != null
+      ? Number(activeLoans[0].emi)
+      : 0;
 
   const handleRepayClick = (loan: LoanApplication) => {
     setSelectedLoan(loan);
@@ -82,23 +144,45 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
   };
 
   const handleRepayment = async () => {
-    if (!selectedLoan || !user) return;
-    setIsProcessing(true);
-    await new Promise((r) => setTimeout(r, 1000)); // simulate payment
-    addRepayment(
-      selectedLoan.id,
-      user.id,
-      user.bankAccountNumber || "****XXXX",
-      selectedLoan.emi
-    );
-    setIsProcessing(false);
-    setRepaymentSuccess(true);
-    setTimeout(() => {
-      setIsRepayModalOpen(false);
-      setRepaymentSuccess(false);
-      setSelectedLoan(null);
-      setHistoryOpen(true);
-    }, 1200);
+    if (!selectedLoan || !user?.bankAccountNumber) return;
+
+    try {
+      setIsProcessing(true);
+
+      // ✅ Call backend
+      await repayLoan(user.bankAccountNumber, selectedLoan.emi);
+
+      // ✅ Log repayment locally
+      addRepayment(
+        selectedLoan.id,
+        user.id,
+        user.bankAccountNumber,
+        selectedLoan.emi
+      );
+
+      // ✅ Refresh UI with new loan state
+      const [updatedApplications, updatedLoans] = await Promise.all([
+        getMyApplications(user.bankAccountNumber),
+        getMyActiveLoans(user.bankAccountNumber),
+      ]);
+      setApplications((updatedApplications || []).map(mapApp));
+      setLoans(updatedLoans || []);
+
+      setRepaymentSuccess(true);
+
+      // ✅ Close modal + open history
+      setTimeout(() => {
+        setIsRepayModalOpen(false);
+        setRepaymentSuccess(false);
+        setSelectedLoan(null);
+        setHistoryOpen(true);
+      }, 1000);
+    } catch (error: any) {
+      console.error("❌ Repayment failed:", error);
+      alert("❌ Repayment failed: " + (error?.response?.data || error.message));
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const closeModal = () => {
@@ -129,7 +213,36 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
               </h2>
             </div>
 
-            {applications.length === 0 ? (
+            {authLoading ? (
+              <div className='p-8 text-center text-gray-600'>Loading…</div>
+            ) : !user ? (
+              <div className='p-8 text-center text-gray-600'>
+                Please sign in to view your applications.
+              </div>
+            ) : !user.accountVerified || !user.bankAccountNumber ? (
+              <div className='p-8 text-center'>
+                <div className='bg-gray-100 rounded-full p-3 w-16 h-16 flex items-center justify-center mx-auto mb-4'>
+                  <CreditCard className='h-8 w-8 text-gray-400' />
+                </div>
+                <h3 className='text-lg font-medium text-gray-900 mb-2'>
+                  Bank account not verified
+                </h3>
+                <p className='text-gray-600 mb-6'>
+                  Verify your bank account to see and manage applications.
+                </p>
+                <Link
+                  to='/link-account'
+                  className='bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 transition-colors inline-flex items-center gap-2'
+                >
+                  <CreditCard className='h-4 w-4' />
+                  <span>Verify Account</span>
+                </Link>
+              </div>
+            ) : appsLoading ? (
+              <div className='p-8 text-center text-gray-600'>Loading…</div>
+            ) : appsError ? (
+              <div className='p-8 text-center text-red-600'>{appsError}</div>
+            ) : applications.length === 0 ? (
               <div className='p-8 sm:p-12 text-center'>
                 <div className='bg-gray-100 rounded-full p-3 w-16 h-16 flex items-center justify-center mx-auto mb-4'>
                   <Banknote className='h-8 w-8 text-gray-400' />
@@ -140,23 +253,13 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                 <p className='text-gray-600 mb-6'>
                   Start your financial journey by applying for your first loan.
                 </p>
-                {user?.accountVerified ? (
-                  <Link
-                    to='/apply-loan'
-                    className='bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2'
-                  >
-                    <Plus className='h-4 w-4' />
-                    <span>Apply Now</span>
-                  </Link>
-                ) : (
-                  <Link
-                    to='/link-account'
-                    className='bg-orange-600 text-white px-5 py-2 rounded-lg hover:bg-orange-700 transition-colors inline-flex items-center gap-2'
-                  >
-                    <CreditCard className='h-4 w-4' />
-                    <span>Verify Account First</span>
-                  </Link>
-                )}
+                <Link
+                  to='/apply-loan'
+                  className='bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition-colors inline-flex items-center gap-2'
+                >
+                  <Plus className='h-4 w-4' />
+                  <span>Apply Now</span>
+                </Link>
               </div>
             ) : (
               <div className='overflow-x-auto'>
@@ -188,20 +291,20 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                   </thead>
                   <tbody className='bg-white divide-y divide-gray-200'>
                     {applications.map((application) => {
-                      const s = (application.status || "").toLowerCase();
+                      const s = application.status;
                       return (
                         <tr key={application.id} className='hover:bg-gray-50'>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap font-medium text-gray-900'>
                             {application.purpose}
                           </td>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
-                            {application.amount.toLocaleString()} Br
+                            {application.amount.toLocaleString()}
                           </td>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
                             {application.duration} months
                           </td>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
-                            {application.emi.toLocaleString()} Br
+                            {application.emi.toLocaleString()}
                           </td>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap'>
                             <span
@@ -213,9 +316,11 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                             </span>
                           </td>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
-                            {new Date(
-                              application.appliedDate
-                            ).toLocaleDateString()}
+                            {application.appliedDate
+                              ? new Date(
+                                  application.appliedDate
+                                ).toLocaleDateString()
+                              : "-"}
                           </td>
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap font-medium'>
                             {s === "approved" && (
@@ -276,7 +381,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                             </td>
                             <td className='py-2 pr-4'>{r.loanId}</td>
                             <td className='py-2 pr-4'>
-                              {r.amount.toLocaleString()} Br
+                              {r.amount.toLocaleString()}
                             </td>
                             <td className='py-2'>
                               ****{r.accountNumber.slice(-4)}
@@ -326,7 +431,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                       Payment Successful!
                     </h3>
                     <p className='text-gray-600'>
-                      Your payment of {selectedLoan.emi.toLocaleString()} Br has
+                      Your payment of {selectedLoan.emi.toLocaleString()} has
                       been processed successfully.
                     </p>
                   </div>
@@ -344,11 +449,11 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                           </span>
                           <span className='text-gray-600'>Amount:</span>
                           <span className='font-medium'>
-                            {selectedLoan.amount.toLocaleString()} Br
+                            {selectedLoan.amount.toLocaleString()}
                           </span>
                           <span className='text-gray-600'>EMI Amount:</span>
                           <span className='font-medium'>
-                            {selectedLoan.emi.toLocaleString()} Br
+                            {selectedLoan.emi.toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -371,7 +476,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                               Payment Amount:
                             </span>
                             <span className='font-medium'>
-                              {selectedLoan.emi.toLocaleString()} Br
+                              {selectedLoan.emi.toLocaleString()}
                             </span>
                           </div>
                           <div className='flex justify-between'>
@@ -410,21 +515,21 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
     );
   }
 
-  /* ------------------------------ DASHBOARD ONLY ----------------------------- */
+  /* ------------------------------ FULL DASHBOARD ----------------------------- */
   return (
     <div className='min-h-screen bg-gray-50 py-6 sm:py-8'>
       <div className='max-w-7xl mx-auto px-3 sm:px-4 lg:px-8'>
         <div className='mb-6 sm:mb-8'>
           <h1 className='text-2xl sm:text-3xl font-bold text-gray-900'>
-            Welcome back, {user?.firstName}!
+            Welcome back, {user?.fullName?.trim() || user?.username || "User"}!
           </h1>
           <p className='text-gray-600 mt-1'>
             Here&apos;s your loan portfolio overview
           </p>
         </div>
 
-        {/* Verify account banner (only shows if NOT verified) */}
-        {!user?.accountVerified && (
+        {/* Verify account banner */}
+        {!authLoading && user && !user.accountVerified && (
           <div className='mb-6'>
             <div className='rounded-lg border border-yellow-200 bg-yellow-50 p-4 flex items-start justify-between gap-4'>
               <div className='flex gap-3'>
@@ -470,7 +575,12 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                   Total Outstanding
                 </p>
                 <p className='text-2xl font-bold text-gray-900'>
-                  {totalOutstanding.toLocaleString()} Br
+                  {typeof totalOutstanding === "number"
+                    ? totalOutstanding.toLocaleString("en-US", {
+                        style: "currency",
+                        currency: "USD",
+                      })
+                    : "Loading..."}
                 </p>
               </div>
             </div>
@@ -484,7 +594,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
               <div className='ml-4'>
                 <p className='text-sm font-medium text-gray-600'>Next EMI</p>
                 <p className='text-2xl font-bold text-gray-900'>
-                  {nextEMI.toLocaleString()} Br
+                  {nextEMI.toLocaleString()}
                 </p>
                 <p className='text-xs text-gray-500'>Due: March 15, 2025</p>
               </div>
@@ -542,6 +652,112 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
               </button>
             </div>
           </div>
+        </div>
+
+        {/* Applications list (same table as "My Loans" block) */}
+        <div className='bg-white rounded-lg shadow-sm overflow-hidden'>
+          <div className='px-4 sm:px-6 py-4 border-b border-gray-200'>
+            <h2 className='text-lg font-semibold text-gray-900'>
+              Your Loan Applications
+            </h2>
+          </div>
+
+          {authLoading ? (
+            <div className='p-8 text-center text-gray-600'>Loading…</div>
+          ) : !user ? (
+            <div className='p-8 text-center text-gray-600'>
+              Please sign in to view your applications.
+            </div>
+          ) : !user.accountVerified || !user.bankAccountNumber ? (
+            <div className='p-8 text-center text-gray-600'>
+              Verify your bank account to see your applications.
+            </div>
+          ) : appsLoading ? (
+            <div className='p-8 text-center text-gray-600'>Loading…</div>
+          ) : appsError ? (
+            <div className='p-8 text-center text-red-600'>{appsError}</div>
+          ) : applications.length === 0 ? (
+            <div className='p-8 text-center text-gray-600'>
+              No applications found.
+            </div>
+          ) : (
+            <div className='overflow-x-auto'>
+              <table className='min-w-full divide-y divide-gray-200 text-sm'>
+                <thead className='bg-gray-50'>
+                  <tr>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Purpose
+                    </th>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Amount
+                    </th>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Duration
+                    </th>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Monthly EMI
+                    </th>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Status
+                    </th>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Applied Date
+                    </th>
+                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className='bg-white divide-y divide-gray-200'>
+                  {applications.map((application) => {
+                    const s = application.status;
+                    return (
+                      <tr key={application.id} className='hover:bg-gray-50'>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap font-medium text-gray-900'>
+                          {application.purpose}
+                        </td>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
+                          {application.amount.toLocaleString()}
+                        </td>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
+                          {application.duration} months
+                        </td>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
+                          {application.emi.toLocaleString()}
+                        </td>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap'>
+                          <span
+                            className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(
+                              s
+                            )}`}
+                          >
+                            {s.charAt(0).toUpperCase() + s.slice(1)}
+                          </span>
+                        </td>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
+                          {application.appliedDate
+                            ? new Date(
+                                application.appliedDate
+                              ).toLocaleDateString()
+                            : "-"}
+                        </td>
+                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap font-medium'>
+                          {s === "approved" && (
+                            <button
+                              onClick={() => handleRepayClick(application)}
+                              className='bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition-colors'
+                            >
+                              Repay
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
 
@@ -622,7 +838,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                           </td>
                           <td className='py-2 pr-4'>{r.loanId}</td>
                           <td className='py-2 pr-4'>
-                            {r.amount.toLocaleString()} Br
+                            {r.amount.toLocaleString()}
                           </td>
                           <td className='py-2'>
                             ****{r.accountNumber.slice(-4)}

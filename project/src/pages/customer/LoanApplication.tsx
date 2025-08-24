@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Calculator, Banknote, Clock } from "lucide-react";
 import { useAuth } from "../../contexts/AuthContext";
-import { useLoan } from "../../contexts/LoanContext";
+import { applyLoan } from "../../services/loan";
 import {
   calculateEMI,
   getLoanPurposes,
@@ -19,9 +19,10 @@ const LoanApplication: React.FC = () => {
   const [interestRate, setInterestRate] = useState(0);
   const [agreedToTerms, setAgreedToTerms] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [submitOk, setSubmitOk] = useState<string | null>(null);
 
   const { user } = useAuth();
-  const { addApplication } = useLoan();
   const navigate = useNavigate();
 
   const purposes = getLoanPurposes();
@@ -47,32 +48,69 @@ const LoanApplication: React.FC = () => {
   ) => {
     const { name, value } = e.target;
     setFormData((prev) => ({ ...prev, [name]: value }));
+    setSubmitError(null);
+    setSubmitOk(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!user || !agreedToTerms) return;
+    if (!user) return;
+
+    // Basic client-side guards
+    if (!agreedToTerms) {
+      setSubmitError("Please agree to the Terms & Privacy Policy.");
+      return;
+    }
+    if (!user.accountVerified || !user.bankAccountNumber) {
+      setSubmitError(
+        "Your bank account must be verified before you can apply."
+      );
+      return;
+    }
+
+    const amountNum = parseFloat(formData.amount);
+    const durationNum = parseInt(formData.duration);
+    if (!formData.purpose || isNaN(amountNum) || isNaN(durationNum)) {
+      setSubmitError("Please fill all fields correctly.");
+      return;
+    }
 
     setIsLoading(true);
+    setSubmitError(null);
+    setSubmitOk(null);
 
-    const applicationData = {
-      customerId: user.id,
-      customerName: `${user.firstName} ${user.lastName}`,
-      accountNumber: user.bankAccountNumber || "",
-      purpose: formData.purpose,
-      amount: parseFloat(formData.amount),
-      duration: parseInt(formData.duration),
-      emi: emi,
-      interestRate: interestRate,
-    };
+    try {
+      // POST /api/lms/loan/apply  (expects strings for numbers per your controller)
+      const res = await applyLoan({
+        accountNumber: user.bankAccountNumber,
+        loanAmount: amountNum,
+        purpose: formData.purpose,
+        termMonths: durationNum,
+      });
 
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-    addApplication(applicationData);
-    setIsLoading(false);
-    navigate("/dashboard");
+      // BE returns a message string like “✅ Loan application submitted successfully...”
+      const msg =
+        typeof res.data === "string"
+          ? res.data
+          : "Application submitted successfully.";
+      setSubmitOk(msg);
+
+      // small pause so the user can read the message, then go to My Loans
+      setTimeout(() => navigate("/my-loans"), 800);
+    } catch (err: any) {
+      // Show backend error text if present
+      const backendMsg =
+        err?.response?.data && typeof err.response.data === "string"
+          ? err.response.data
+          : "Failed to submit the loan application.";
+      setSubmitError(backendMsg);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  if (!user?.accountVerified) {
+  // Gate if not verified
+  if (!user?.accountVerified || !user?.bankAccountNumber) {
     return (
       <div className='min-h-screen bg-gray-50 flex items-center justify-center'>
         <div className='bg-white rounded-lg shadow-lg p-8 max-w-md text-center'>
@@ -116,7 +154,7 @@ const LoanApplication: React.FC = () => {
                   </label>
                   <input
                     type='text'
-                    value={`****${user.bankAccountNumber?.slice(-4) || ""}`}
+                    value={`****${user.bankAccountNumber.slice(-4)}`}
                     disabled
                     className='w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-500'
                   />
@@ -148,7 +186,7 @@ const LoanApplication: React.FC = () => {
 
                 <div>
                   <label className='block text-sm font-medium text-gray-700 mb-2'>
-                    Loan Amount (Br) *
+                    Loan Amount ($) *
                   </label>
                   <input
                     type='number'
@@ -162,7 +200,7 @@ const LoanApplication: React.FC = () => {
                     placeholder='Enter loan amount'
                   />
                   <p className='text-xs text-gray-500 mt-1'>
-                    Minimum: 1,000 Br | Maximum: 1,000,000 Br
+                    Minimum: $1,000 | Maximum: $1,000,000
                   </p>
                 </div>
 
@@ -186,6 +224,17 @@ const LoanApplication: React.FC = () => {
                   </p>
                 </div>
 
+                {submitError && (
+                  <div className='bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700'>
+                    {submitError}
+                  </div>
+                )}
+                {submitOk && (
+                  <div className='bg-green-50 border border-green-200 rounded-lg p-3 text-sm text-green-700 whitespace-pre-line'>
+                    {submitOk}
+                  </div>
+                )}
+
                 <div className='flex items-start space-x-3 p-4 bg-gray-50 rounded-lg'>
                   <input
                     type='checkbox'
@@ -206,6 +255,7 @@ const LoanApplication: React.FC = () => {
                     >
                       Privacy Policy
                     </a>
+                    .
                   </label>
                 </div>
 
@@ -243,7 +293,7 @@ const LoanApplication: React.FC = () => {
                       <div className='text-center'>
                         <p className='text-sm text-gray-600'>Monthly EMI</p>
                         <p className='text-3xl font-bold text-blue-600'>
-                          {emi.toLocaleString()} Br
+                          ${emi.toLocaleString()}
                         </p>
                       </div>
                     </div>
@@ -254,8 +304,7 @@ const LoanApplication: React.FC = () => {
                           Principal Amount:
                         </span>
                         <span className='font-semibold'>
-                          {parseFloat(formData.amount || "0").toLocaleString()}{" "}
-                          Br
+                          ${parseFloat(formData.amount || "0").toLocaleString()}
                         </span>
                       </div>
                       <div className='flex justify-between items-center'>
@@ -278,10 +327,10 @@ const LoanApplication: React.FC = () => {
                           Total Amount:
                         </span>
                         <span className='font-semibold'>
+                          $
                           {(
-                            emi * parseInt(formData.duration || "0")
-                          ).toLocaleString()}{" "}
-                          Br
+                            emi * (parseInt(formData.duration || "0") || 0)
+                          ).toLocaleString()}
                         </span>
                       </div>
                       <div className='flex justify-between items-center'>
@@ -289,11 +338,11 @@ const LoanApplication: React.FC = () => {
                           Total Interest:
                         </span>
                         <span className='font-semibold text-orange-600'>
+                          $
                           {(
-                            emi * parseInt(formData.duration || "0") -
-                            parseFloat(formData.amount || "0")
-                          ).toLocaleString()}{" "}
-                          Br
+                            emi * (parseInt(formData.duration || "0") || 0) -
+                            (parseFloat(formData.amount || "0") || 0)
+                          ).toLocaleString()}
                         </span>
                       </div>
                     </div>
