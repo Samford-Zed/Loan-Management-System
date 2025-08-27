@@ -1,4 +1,3 @@
-// src/api/loanApi.ts
 import api from "../lib/api";
 
 /** ---- Backend shapes (loose, nullable-safe) ---- */
@@ -7,9 +6,9 @@ type ApiApplication = {
   accountNumber?: string | null;
   purpose?: string | null;
   termMonths?: number | null;
-  status?: string | null; // e.g. "PENDING" | "APPROVED" | "REJECTED"
-  loanAmount?: string | number | null; // BigDecimal serialized as string
-  emiPerMonth?: string | number | null; // BigDecimal serialized as string
+  status?: string | null;
+  loanAmount?: string | number | null;
+  emiPerMonth?: string | number | null;
   totalEmi?: string | number | null;
   appliedDate?: string | null;
   customerName?: string | null;
@@ -101,7 +100,6 @@ export async function fetchAllApplications(): Promise<LoanApplication[]> {
     const { data } = await api.get<ApiApplication[]>("/admin/applications");
     return (data || []).map(mapApplication);
   } catch (e: any) {
-    // Fallback to /loan/pending if /admin/applications doesn't exist
     if (e?.response?.status && [404, 405].includes(e.response.status)) {
       const { data } = await api.get<PendingItem[]>("/loan/pending");
       return (data || [])
@@ -119,8 +117,7 @@ export async function fetchAllApplications(): Promise<LoanApplication[]> {
  */
 export async function updateApplicationStatus(
   id: string,
-  status: "approved" | "rejected",
-  reason?: string
+  status: "approved" | "rejected"
 ): Promise<LoanApplication> {
   if (status === "approved") {
     await api.post("/loan/approve", null, {
@@ -134,7 +131,6 @@ export async function updateApplicationStatus(
       duration: 0,
       emi: 0,
       status: "approved",
-      reason: null,
       appliedDate: null,
     };
   }
@@ -143,29 +139,23 @@ export async function updateApplicationStatus(
   try {
     const { data } = await api.patch<ApiApplication>(
       `/admin/applications/${id}/status`,
-      { status: "rejected", reason }
+      { status: "rejected" }
     );
     return mapApplication(data);
   } catch {
-    // Fallback to POST /loan/reject if you have it
-    try {
-      await api.post("/loan/reject", null, {
-        params: { loanApplicationId: id, reason },
-      });
-      return {
-        id,
-        accountNumber: "",
-        purpose: "",
-        amount: 0,
-        duration: 0,
-        emi: 0,
-        status: "rejected",
-        reason: reason ?? null,
-        appliedDate: null,
-      };
-    } catch (err) {
-      throw err;
-    }
+    await api.post("/loan/reject", null, {
+      params: { loanApplicationId: id },
+    });
+    return {
+      id,
+      accountNumber: "",
+      purpose: "",
+      amount: 0,
+      duration: 0,
+      emi: 0,
+      status: "rejected",
+      appliedDate: null,
+    };
   }
 }
 

@@ -1,9 +1,9 @@
-// src/pages/admin/AdminApplications.tsx
 import React, { useEffect, useState } from "react";
 import { CreditCard, AlertTriangle, CheckCircle } from "lucide-react";
 import {
   fetchPendingForAdmin,
   approveApplication,
+  rejectApplication,
 } from "../../api/adminLoanApi";
 
 type PendingRow = Awaited<ReturnType<typeof fetchPendingForAdmin>>[number];
@@ -14,6 +14,7 @@ const AdminApplications: React.FC = () => {
   const [rows, setRows] = useState<PendingRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [busyKind, setBusyKind] = useState<"approve" | "reject" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [flash, setFlash] = useState<{
     type: "ok" | "warn";
@@ -39,11 +40,10 @@ const AdminApplications: React.FC = () => {
 
   const onApprove = async (id: number) => {
     setBusyId(id);
+    setBusyKind("approve");
     setFlash(null);
     try {
       const message = await approveApplication(id);
-      // Backend returns 200 both for actual approval and auto-reject.
-      // Show whatever it said, then refresh the list.
       const isRejectMsg =
         /reject/i.test(message) || /cannot approve/i.test(message);
       setFlash({ type: isRejectMsg ? "warn" : "ok", msg: message });
@@ -52,6 +52,24 @@ const AdminApplications: React.FC = () => {
       setError(e?.response?.data || "Approve failed.");
     } finally {
       setBusyId(null);
+      setBusyKind(null);
+    }
+  };
+
+  const onReject = async (id: number) => {
+    if (!confirm("Reject this application?")) return;
+    setBusyId(id);
+    setBusyKind("reject");
+    setFlash(null);
+    try {
+      const message = await rejectApplication(id);
+      setFlash({ type: "warn", msg: message || "Application rejected." });
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data || "Reject failed.");
+    } finally {
+      setBusyId(null);
+      setBusyKind(null);
     }
   };
 
@@ -61,8 +79,7 @@ const AdminApplications: React.FC = () => {
         <div className='mb-8'>
           <h1 className='text-3xl font-bold text-gray-900'>Applications</h1>
           <p className='text-gray-600 mt-1'>
-            Review BMS snapshot and finalize each application. Rejection is
-            handled automatically by the backend when outstanding debt exists.
+            Review BMS snapshot and finalize each application.
           </p>
         </div>
 
@@ -128,11 +145,13 @@ const AdminApplications: React.FC = () => {
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       BMS Total
                     </th>
+
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Action
                     </th>
                   </tr>
                 </thead>
+
                 <tbody className='bg-white divide-y divide-gray-200'>
                   {rows.map((r) => (
                     <tr key={r.id} className='hover:bg-gray-50'>
@@ -151,15 +170,28 @@ const AdminApplications: React.FC = () => {
                       <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
                         {fmtMoney(r.bmsTotal)}
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
+
+                      <td className='px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2'>
                         <button
                           onClick={() => onApprove(r.id)}
                           disabled={busyId === r.id}
                           className='bg-green-600 text-white px-3 py-1.5 rounded text-xs hover:bg-green-700 transition-colors disabled:opacity-60'
                         >
-                          {busyId === r.id ? "Working…" : "Approve & Disburse"}
+                          {busyId === r.id && busyKind === "approve"
+                            ? "Working…"
+                            : "Approve & Disburse"}
                         </button>
-                        {/* ⛔ No Reject button — backend auto-rejects on approval if debt exists */}
+
+                        <button
+                          onClick={() => onReject(r.id)}
+                          disabled={busyId === r.id}
+                          className='bg-red-600 text-white px-3 py-1.5 rounded text-xs hover:bg-red-700 transition-colors disabled:opacity-60'
+                          title='Reject application'
+                        >
+                          {busyId === r.id && busyKind === "reject"
+                            ? "Rejecting…"
+                            : "Reject"}
+                        </button>
                       </td>
                     </tr>
                   ))}

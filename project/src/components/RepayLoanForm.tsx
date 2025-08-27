@@ -1,4 +1,3 @@
-// src/components/RepayLoanForm.tsx
 import React, { useState } from "react";
 import { repayLoan } from "../services/loan";
 

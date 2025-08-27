@@ -7,11 +7,11 @@ export interface LoanApplication {
   accountNumber: string;
   purpose: string;
   amount: number;
-  duration: number; // months
+  duration: number;
   emi: number;
   interestRate: number;
   status: "pending" | "approved" | "rejected";
-  appliedDate: string; // ISO
+  appliedDate: string;
   reason?: string;
 }
 
@@ -21,7 +21,7 @@ export interface Repayment {
   customerId: string;
   accountNumber: string;
   amount: number;
-  paidAt: string; // ISO
+  paidAt: string;
 }
 
 interface LoanContextType {
@@ -58,7 +58,7 @@ export const useLoan = () => {
 const APPS_KEY = "loanApplications";
 const REPAID_KEY = "loanRepayments";
 
-// Seed data (you can keep or remove)
+// Seed data
 const SEED: LoanApplication[] = [
   {
     id: "la-1",
@@ -112,14 +112,14 @@ export const LoanProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem(REPAID_KEY, JSON.stringify(repayments));
   }, [repayments]);
 
-  // DEMO: auto-approve new applications so Repay shows right away
+  // auto-approve new applications so Repay shows right away
   const addApplication = (
     data: Omit<LoanApplication, "id" | "status" | "appliedDate">
   ) => {
     const newApp: LoanApplication = {
       ...data,
       id: `la-${Date.now()}`,
-      status: "approved", // <- change to 'pending' when you hook the admin flow
+      status: "approved",
       appliedDate: new Date().toISOString(),
     };
     setApplications((prev) => [newApp, ...prev]);

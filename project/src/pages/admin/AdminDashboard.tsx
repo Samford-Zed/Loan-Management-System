@@ -67,7 +67,6 @@ const AdminDashboard: React.FC = () => {
     status: "approved" | "rejected",
     reason?: string
   ) => {
-    // optimistic UI
     const prev = applications;
     setApplications((prevApps) =>
       prevApps.map((a) => (a.id === id ? { ...a, status, reason } : a))
@@ -75,15 +74,13 @@ const AdminDashboard: React.FC = () => {
 
     try {
       await updateApplicationStatus(id, status, reason);
-      // On approval, your backend disburses immediately.
     } catch (e) {
-      // revert on error and surface message
       setApplications(prev);
       await reload();
     }
   };
 
-  const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
+  // const formatDate = (iso: string) => new Date(iso).toLocaleDateString();
 
   return (
     <div className='min-h-screen bg-gray-50 py-8'>
@@ -221,9 +218,7 @@ const AdminDashboard: React.FC = () => {
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Status
                     </th>
-                    <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
-                      Applied
-                    </th>
+
                     <th className='px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider'>
                       Actions
                     </th>
@@ -266,9 +261,7 @@ const AdminDashboard: React.FC = () => {
                           {a.status.charAt(0).toUpperCase() + a.status.slice(1)}
                         </span>
                       </td>
-                      <td className='px-6 py-4 whitespace-nowrap text-sm text-gray-900'>
-                        {formatDate(a.appliedDate)}
-                      </td>
+
                       <td className='px-6 py-4 whitespace-nowrap text-sm font-medium'>
                         {a.status === "pending" && (
                           <div className='flex space-x-2'>
@@ -280,18 +273,6 @@ const AdminDashboard: React.FC = () => {
                             >
                               Approve & Disburse
                             </button>
-                            {/* <button
-                              onClick={() => {
-                                const reason =
-                                  window.prompt(
-                                    "Reason for rejection (optional):"
-                                  ) || undefined;
-                                handleStatusUpdate(a.id, "rejected", reason);
-                              }}
-                              className='bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700 transition-colors'
-                            >
-                              Reject
-                            </button> */}
                           </div>
                         )}
                         {a.status === "approved" && (

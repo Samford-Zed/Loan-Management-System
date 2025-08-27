@@ -29,6 +29,18 @@ const LinkAccount: React.FC = () => {
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Treat only these messages as a real "deposit sent"
+  const isDepositSent = (msg: string) => {
+    const m = msg.toLowerCase();
+    return (
+      m.includes("micro-deposit") ||
+      m.includes("micro deposit") ||
+      m.includes("deposit sent") ||
+      m.includes("attempt #") ||
+      m.includes("waiting_verification")
+    );
+  };
+
   const handleInitiateLinking = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -39,9 +51,17 @@ const LinkAccount: React.FC = () => {
 
     try {
       setSending(true);
-      const { data } = await sendAccountToBms(acc); // POST /api/lms/account/send
-      setSendMsg(typeof data === "string" ? data : "Micro-deposit requested.");
-      setStep("verify");
+      const { data } = await sendAccountToBms(acc);
+      const msg = typeof data === "string" ? data : "Micro-deposit requested.";
+
+      // ⬇️ Only go to VERIFY if backend indicates success; else stay here and show the error
+      if (isDepositSent(msg)) {
+        setSendMsg(msg);
+        setStep("verify");
+      } else {
+        setError(msg || "BMS verification failed.");
+        setSendMsg(null);
+      }
     } catch (err: any) {
       const msg =
         err?.response?.data ||
@@ -64,16 +84,13 @@ const LinkAccount: React.FC = () => {
 
     try {
       setVerifying(true);
-      const { data } = await confirmDeposit(acc, Number(amt)); // POST /api/lms/account/confirm-deposit
+      const { data } = await confirmDeposit(acc, Number(amt));
       setVerifyMsg(typeof data === "string" ? data : "Bank account verified.");
 
-      // reflect verification in UI
       updateUser({ accountVerified: true, bankAccountNumber: acc });
 
-      // go back to dashboard after a short delay
       setTimeout(() => navigate("/dashboard"), 900);
     } catch (err: any) {
-      // backend sends useful messages, surface them
       const msg =
         err?.response?.data ||
         err?.message ||

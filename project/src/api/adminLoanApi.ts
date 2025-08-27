@@ -1,4 +1,3 @@
-// src/api/adminLoanApi.ts
 import api from "../lib/api";
 
 export type PendingApplication = {
@@ -47,4 +46,14 @@ export async function approveApplication(
     params: { loanApplicationId },
   });
   return typeof data === "string" ? data : "OK";
+}
+
+/** POST /loan/reject?loanApplicationId=ID   */
+export async function rejectApplication(
+  loanApplicationId: number
+): Promise<string> {
+  const { data } = await api.post<string>("/loan/reject", null, {
+    params: { loanApplicationId },
+  });
+  return typeof data === "string" ? data : "Application rejected";
 }

@@ -1,4 +1,3 @@
-// src/contexts/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from "react";
 import {
   login as authLogin,
@@ -7,6 +6,7 @@ import {
   logout as authLogout,
   AppUser,
 } from "../services/auth";
+import { updatePassword as updatePasswordApi } from "../services/auth";
 
 export type Role = "admin" | "customer";
 
@@ -42,7 +42,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AppUser | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // On mount: if we have a token, try to refresh profile from backend; else hydrate from LS
   useEffect(() => {
     const init = async () => {
       try {
@@ -55,7 +54,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
             return;
           }
         }
-        // fallback to cached user if no token or loadMe failed
         const cached = localStorage.getItem(LS_USER);
         if (cached) setUser(JSON.parse(cached));
       } finally {
@@ -80,13 +78,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     return true;
   };
 
-  /** Register with fullName/username/email/password */
   const register = async (data: RegisterData): Promise<boolean> => {
     await authRegister(data);
     return true;
   };
 
-  /** Logout: clear token + user */
   const logout = () => {
     authLogout();
     setUser(null);
@@ -101,10 +97,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       return next;
     });
   };
+  const updatePassword = async (oldPassword: string, newPassword: string) => {
+    await updatePasswordApi(oldPassword, newPassword);
+  };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, login, register, logout, updateUser }}
+      value={{
+        user,
+        loading,
+        login,
+        register,
+        logout,
+        updateUser,
+        updatePassword,
+      }}
     >
       {children}
     </AuthContext.Provider>

@@ -94,13 +94,11 @@ const Landing: React.FC = () => {
                 <div className='mt-5 grid grid-cols-2 gap-4 text-sm'>
                   <div className='rounded-lg border bg-gray-50 p-3'>
                     <p className='text-gray-500'>Sample Amount</p>
-                    <p className='font-semibold text-gray-900'>25,000 Br</p>
+                    <p className='font-semibold text-gray-900'>$25,000</p>
                   </div>
                   <div className='rounded-lg border bg-gray-50 p-3'>
                     <p className='text-gray-500'>Sample EMI</p>
-                    <p className='font-semibold text-gray-900'>
-                      512 Br / month
-                    </p>
+                    <p className='font-semibold text-gray-900'>$512 / month</p>
                   </div>
                 </div>
                 <p className='mt-4 text-xs text-gray-500'>

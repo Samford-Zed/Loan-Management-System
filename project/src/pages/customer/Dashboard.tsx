@@ -1,4 +1,3 @@
-// src/pages/customer/Dashboard.tsx
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -32,7 +31,7 @@ type LoanApplication = {
   duration: number; // months
   emi: number;
   status: "pending" | "approved" | "rejected";
-  appliedDate?: string; // ISO string
+  appliedDate?: string;
 };
 
 type DashboardProps = { showOnlyLoans?: boolean };
@@ -46,7 +45,7 @@ const getStatusColor = (status: string) => {
     case "rejected":
       return "bg-red-100 text-red-800";
     default:
-      return "bg-yellow-100 text-yellow-800"; // pending/unknown
+      return "bg-yellow-100 text-yellow-800";
   }
 };
 
@@ -55,7 +54,6 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
   const navigate = useNavigate();
   const { addRepayment, getCustomerRepayments } = useLoan();
 
-  // UI state
   const [selectedLoan, setSelectedLoan] = useState<LoanApplication | null>(
     null
   );
@@ -132,10 +130,18 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
       return sum + (isNaN(remaining) ? 0 : remaining);
     }, 0);
   }, [activeLoans]);
-  const nextEMI =
-    activeLoans.length > 0 && activeLoans[0]?.emi != null
-      ? Number(activeLoans[0].emi)
-      : 0;
+  const nextEMI = useMemo(() => {
+    if (!activeLoans || activeLoans.length === 0) return 0;
+
+    const upcomingEMIs = activeLoans
+      .map((loan) => {
+        const emi = Number(loan.emi);
+        return !isNaN(emi) && emi > 0 ? emi : null;
+      })
+      .filter((emi): emi is number => emi !== null);
+
+    return upcomingEMIs.length > 0 ? Math.min(...upcomingEMIs) : 0;
+  }, [activeLoans]);
 
   const handleRepayClick = (loan: LoanApplication) => {
     setSelectedLoan(loan);
@@ -149,10 +155,8 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
     try {
       setIsProcessing(true);
 
-      // ✅ Call backend
       await repayLoan(user.bankAccountNumber, selectedLoan.emi);
 
-      // ✅ Log repayment locally
       addRepayment(
         selectedLoan.id,
         user.id,
@@ -170,7 +174,6 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
 
       setRepaymentSuccess(true);
 
-      // ✅ Close modal + open history
       setTimeout(() => {
         setIsRepayModalOpen(false);
         setRepaymentSuccess(false);
@@ -281,9 +284,9 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                       <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
                         Status
                       </th>
-                      <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                      {/* <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
                         Applied Date
-                      </th>
+                      </th>*/}
                       <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
                         Actions
                       </th>
@@ -315,13 +318,13 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                               {s.charAt(0).toUpperCase() + s.slice(1)}
                             </span>
                           </td>
-                          <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
+                          {/* <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
                             {application.appliedDate
                               ? new Date(
                                   application.appliedDate
                                 ).toLocaleDateString()
-                              : "-"}
-                          </td>
+                              : " "}
+                          </td> */}
                           <td className='px-4 sm:px-6 py-4 whitespace-nowrap font-medium'>
                             {s === "approved" && (
                               <button
@@ -594,8 +597,9 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
               <div className='ml-4'>
                 <p className='text-sm font-medium text-gray-600'>Next EMI</p>
                 <p className='text-2xl font-bold text-gray-900'>
-                  {nextEMI.toLocaleString()}
+                  ${applications[0]?.emi?.toLocaleString() ?? "0"}
                 </p>
+
                 <p className='text-xs text-gray-500'>Due: March 15, 2025</p>
               </div>
             </div>
@@ -700,9 +704,9 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                     <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
                       Status
                     </th>
-                    <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
+                    {/* <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
                       Applied Date
-                    </th>
+                    </th>*/}
                     <th className='px-4 sm:px-6 py-3 text-left font-medium text-gray-500 uppercase tracking-wider'>
                       Actions
                     </th>
@@ -734,13 +738,13 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                             {s.charAt(0).toUpperCase() + s.slice(1)}
                           </span>
                         </td>
-                        <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
+                        {/* <td className='px-4 sm:px-6 py-4 whitespace-nowrap text-gray-900'>
                           {application.appliedDate
                             ? new Date(
                                 application.appliedDate
                               ).toLocaleDateString()
-                            : "-"}
-                        </td>
+                            : " "}
+                        </td> */}
                         <td className='px-4 sm:px-6 py-4 whitespace-nowrap font-medium'>
                           {s === "approved" && (
                             <button

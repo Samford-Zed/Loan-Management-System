@@ -213,14 +213,14 @@ const LoanApplication: React.FC = () => {
                     name='duration'
                     value={formData.duration}
                     onChange={handleChange}
-                    min='6'
+                    min='3'
                     max='84'
                     required
                     className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                     placeholder='Enter duration in months'
                   />
                   <p className='text-xs text-gray-500 mt-1'>
-                    Minimum: 6 months | Maximum: 84 months (7 years)
+                    Minimum: 3 months | Maximum: 84 months (7 years)
                   </p>
                 </div>
 
@@ -245,12 +245,19 @@ const LoanApplication: React.FC = () => {
                   />
                   <label htmlFor='terms' className='text-sm text-gray-700'>
                     I have read and agree to the{" "}
-                    <a href='/terms' className='text-blue-600 hover:underline'>
+                    <a
+                      href='/terms'
+                      target='_blank'
+                      rel='noopener noreferrer'
+                      className='text-blue-600 hover:underline'
+                    >
                       Terms & Conditions
                     </a>{" "}
                     and{" "}
                     <a
                       href='/privacy'
+                      target='_blank'
+                      rel='noopener noreferrer'
                       className='text-blue-600 hover:underline'
                     >
                       Privacy Policy

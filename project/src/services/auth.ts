@@ -1,4 +1,4 @@
-import api from "../lib/api"; // Protected: baseURL = http://localhost:8081/api/lms + JWT
+import api from "../lib/api"; // Protected: baseURL = http://localhost:8081/api/lms (+JWT via interceptor)
 import publicApi from "../lib/publicApi"; // Public: baseURL = http://localhost:8081
 
 /** === Backend shape from /api/lms/profile === */
@@ -47,18 +47,25 @@ export async function login(
       password,
     });
 
-    const token = headers?.authorization?.startsWith("Bearer ")
-      ? headers.authorization.substring(7)
-      : data?.token ||
-        data?.jwt ||
-        data?.accessToken ||
-        (typeof data === "string" ? data : undefined);
+    // Token can come from header or body; normalize
+    const bearer = headers?.authorization ?? headers?.Authorization;
+    const tokenFromHeader =
+      typeof bearer === "string" && bearer.startsWith("Bearer ")
+        ? bearer.slice(7)
+        : undefined;
 
+    const tokenFromBody =
+      (data?.token as string) ||
+      (data?.jwt as string) ||
+      (data?.accessToken as string) ||
+      (typeof data === "string" ? data : undefined);
+
+    const token = tokenFromHeader ?? tokenFromBody;
     if (!token) throw new Error("No token returned");
 
     localStorage.setItem("token", token);
 
-    // Now fetch profile using the JWT
+    // Now fetch profile using the JWT (via api interceptor)
     const { data: profile } = await api.get<RawProfile>("/profile");
     const user = mapProfile(profile);
     localStorage.setItem("auth_user", JSON.stringify(user));
@@ -93,9 +100,20 @@ export async function resetPassword(token: string, newPassword: string) {
   return publicApi.post("/resetPassword", { token, newPassword });
 }
 
-/** === CHANGE PASSWORD (JWT required) === */
+/**
+ * === CHANGE PASSWORD (JWT required) ===
+ * IMPORTANT: Backend endpoint is at the ROOT (/updatePassword), not under /api/lms.
+ * We keep only two clients, so we use publicApi here and manually add the Authorization header.
+ */
 export async function updatePassword(oldPassword: string, newPassword: string) {
-  return api.put("/updatePassword", { oldPassword, newPassword });
+  const token = localStorage.getItem("token");
+  if (!token) throw new Error("Not authenticated");
+
+  return publicApi.put(
+    "/updatePassword",
+    { oldPassword, newPassword },
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
 }
 
 /** === Load current user from backend (JWT) === */
