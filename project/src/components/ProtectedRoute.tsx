@@ -16,7 +16,6 @@ const ProtectedRoute: React.FC<Props> = ({
   const { user, loading } = useAuth();
   const location = useLocation();
 
-  // Wait for auth hydration to finish to avoid redirect on reload
   if (loading) return <div />;
 
   if (!user) {
