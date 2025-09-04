@@ -1,4 +1,3 @@
-// src/pages/customer/LinkAccount.tsx
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -29,7 +28,6 @@ const LinkAccount: React.FC = () => {
   const [verifyMsg, setVerifyMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Treat only these messages as a real "deposit sent"
   const isDepositSent = (msg: string) => {
     const m = msg.toLowerCase();
     return (
@@ -54,7 +52,6 @@ const LinkAccount: React.FC = () => {
       const { data } = await sendAccountToBms(acc);
       const msg = typeof data === "string" ? data : "Micro-deposit requested.";
 
-      // ⬇️ Only go to VERIFY if backend indicates success; else stay here and show the error
       if (isDepositSent(msg)) {
         setSendMsg(msg);
         setStep("verify");

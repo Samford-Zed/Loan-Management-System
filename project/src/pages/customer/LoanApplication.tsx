@@ -80,7 +80,6 @@ const LoanApplication: React.FC = () => {
     setSubmitOk(null);
 
     try {
-      // POST /api/lms/loan/apply  (expects strings for numbers per your controller)
       const res = await applyLoan({
         accountNumber: user.bankAccountNumber,
         loanAmount: amountNum,
@@ -88,14 +87,12 @@ const LoanApplication: React.FC = () => {
         termMonths: durationNum,
       });
 
-      // BE returns a message string like “✅ Loan application submitted successfully...”
       const msg =
         typeof res.data === "string"
           ? res.data
           : "Application submitted successfully.";
       setSubmitOk(msg);
 
-      // small pause so the user can read the message, then go to My Loans
       setTimeout(() => navigate("/my-loans"), 800);
     } catch (err: any) {
       // Show backend error text if present
@@ -109,7 +106,6 @@ const LoanApplication: React.FC = () => {
     }
   };
 
-  // Gate if not verified
   if (!user?.accountVerified || !user?.bankAccountNumber) {
     return (
       <div className='min-h-screen bg-gray-50 flex items-center justify-center'>

@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Hide built-in password reveal/clear buttons (Edge/IE) */
 input[type="password"]::-ms-reveal,
 input[type="password"]::-ms-clear {
   display: none !important;
@@ -10,7 +9,6 @@ input[type="password"]::-ms-clear {
   height: 0;
 }
 
-/* Hide Chromium’s credentials/decoration button if shown */
 input[type="password"]::-webkit-credentials-auto-fill-button,
 input[type="password"]::-webkit-textfield-decoration-container {
   display: none !important;

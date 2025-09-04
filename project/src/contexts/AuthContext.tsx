@@ -63,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     init();
   }, []);
 
-  /** Login -> stores token -> fetch /api/lms/profile -> store user */
+  
   const login = async (
     username: string,
     password: string,
