@@ -7,7 +7,6 @@ const Login: React.FC = () => {
   const [formData, setFormData] = useState({
     username: "",
     password: "",
-    role: "customer" as "admin" | "customer",
   });
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
@@ -24,27 +23,35 @@ const Login: React.FC = () => {
     if (error) setError("");
   };
 
-  const handleRoleChange = (role: "admin" | "customer") => {
-    setFormData((prev) => ({ ...prev, role }));
-    if (error) setError("");
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const ok = await login(
-        formData.username.trim(),
-        formData.password,
-        formData.role
-      );
+      // role is inferred by backend + stored by AuthProvider
+      const ok = await login(formData.username.trim(), formData.password);
       if (!ok) {
         setError("Invalid credentials. Please try again.");
         return;
       }
-      navigate(formData.role === "admin" ? "/admin/dashboard" : "/dashboard", {
-        replace: true,
-      });
+
+      // Read role from what AuthProvider saved (robust to different shapes)
+      const raw = localStorage.getItem("auth_user");
+      const parsed = raw ? JSON.parse(raw) : {};
+      const lowerRole = (
+        parsed.role ||
+        parsed.roles?.[0] ||
+        parsed.authorities?.[0] ||
+        ""
+      )
+        .toString()
+        .toLowerCase();
+
+      navigate(
+        lowerRole.includes("admin") ? "/admin/dashboard" : "/dashboard",
+        {
+          replace: true,
+        }
+      );
     } catch {
       setError("Login failed. Please try again.");
     } finally {
@@ -78,35 +85,7 @@ const Login: React.FC = () => {
           )}
 
           <form className='space-y-6' onSubmit={handleSubmit}>
-            <div>
-              <label className='block text-sm font-medium text-gray-700 mb-2'>
-                Login Type
-              </label>
-              <div className='flex rounded-md shadow-sm'>
-                <button
-                  type='button'
-                  onClick={() => handleRoleChange("customer")}
-                  className={`flex-1 py-2 px-4 rounded-l-md border text-sm font-medium ${
-                    formData.role === "customer"
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  Customer Login
-                </button>
-                <button
-                  type='button'
-                  onClick={() => handleRoleChange("admin")}
-                  className={`flex-1 py-2 px-4 rounded-r-md border text-sm font-medium ${
-                    formData.role === "admin"
-                      ? "bg-blue-600 text-white border-blue-600"
-                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-                  }`}
-                >
-                  Admin Login
-                </button>
-              </div>
-            </div>
+            {/* ⬇⬇⬇  REMOVED Login Type & role buttons  ⬇⬇⬇ */}
 
             <div>
               <label

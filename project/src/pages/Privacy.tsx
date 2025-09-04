@@ -64,9 +64,7 @@ const Privacy: React.FC = () => {
             <Lock className='h-8 w-8 text-blue-600 mr-2' />
             <h1 className='text-4xl font-bold text-gray-900'>Privacy Policy</h1>
           </div>
-          <p className='text-xl text-gray-600'>
-            Last updated: January 15, 2025
-          </p>
+          <p className='text-xl text-gray-600'>Last updated: July 25, 2025</p>
         </div>
 
         {/* Introduction */}

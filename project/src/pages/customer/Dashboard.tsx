@@ -67,7 +67,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
   const [appsLoading, setAppsLoading] = useState(false);
   const [appsError, setAppsError] = useState<string | null>(null);
   const [applications, setApplications] = useState<LoanApplication[]>([]);
-  // Add this at line ~75
+
   const [loans, setLoans] = useState<LoanDto[]>([]);
 
   const repayments = user ? getCustomerRepayments(user.id) : [];
@@ -600,7 +600,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
                   ${applications[0]?.emi?.toLocaleString() ?? "0"}
                 </p>
 
-                <p className='text-xs text-gray-500'>Due: March 15, 2025</p>
+                <p className='text-xs text-gray-500'>Due: August 15, 2025</p>
               </div>
             </div>
           </div>
@@ -776,13 +776,13 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
             </div>
             <div className='p-6 space-y-3 text-sm text-gray-700'>
               <p>
-                We’ll send two small micro-deposits (each less than 1.00) to
-                your bank account.
+                We’ll send small micro-deposit (less than $1.00) to your bank
+                account.
               </p>
               <ol className='list-decimal ml-5 space-y-1'>
                 <li>Enter your account number on the verification page.</li>
                 <li>Check your statement in 1–2 business days.</li>
-                <li>Return and input the two amounts to confirm ownership.</li>
+                <li>Return and input the amount to confirm ownership.</li>
               </ol>
             </div>
             <div className='p-6 flex justify-end gap-2 border-t'>

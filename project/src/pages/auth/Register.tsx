@@ -303,7 +303,8 @@ const Register: React.FC = () => {
                 className='text-blue-600 hover:text-blue-500'
               >
                 Terms of Service
-              </a>
+              </a>{" "}
+              and{" "}
               <a
                 href='/privacy'
                 target='_blank'

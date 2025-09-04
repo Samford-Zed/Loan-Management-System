@@ -23,7 +23,7 @@ const Terms: React.FC = () => {
       title: "2. Eligibility",
       content: `To use our services, you must:
       - Be at least 18 years old
-      - Be a legal resident of the United States
+      - Be a legal resident of Ethiopia
       - Have a valid Social Security Number
       - Meet our credit and income requirements
       - Provide accurate and complete information`,
@@ -72,9 +72,7 @@ const Terms: React.FC = () => {
               Terms of Service
             </h1>
           </div>
-          <p className='text-xl text-gray-600'>
-            Last updated: January 15, 2025
-          </p>
+          <p className='text-xl text-gray-600'>Last updated: July 25, 2025</p>
         </div>
 
         {/* Introduction */}
@@ -108,7 +106,7 @@ const Terms: React.FC = () => {
           })}
         </div>
 
-        {/* Additional Sections */}
+        {/* Additional Sections 
         <div className='bg-white rounded-xl shadow-lg p-8 mt-8'>
           <h2 className='text-2xl font-semibold mb-4'>
             6. Limitation of Liability
@@ -140,22 +138,21 @@ const Terms: React.FC = () => {
             platform. Your continued use of the services after changes take
             effect constitutes your acceptance.
           </p>
-
-          <h2 className='text-2xl font-semibold mb-4'>10. Contact Us</h2>
-          <p className='text-gray-700 mb-4'>
-            If you have any questions about these Terms of Service, please
-            contact us:
-          </p>
-          <ul className='text-gray-700 space-y-2'>
-            <li className='flex items-center'>
-              <Mail className='h-5 w-5 text-blue-600 mr-2' />{" "}
-              support@loanpro.com
-            </li>
-            <li className='flex items-center'>
-              <Phone className='h-5 w-5 text-blue-600 mr-2' /> +2519-555-1234
-            </li>
-          </ul>
-        </div>
+          
+        </div>*/}
+        <h2 className='text-2xl font-semibold mb-4'>Contact Us</h2>
+        <p className='text-gray-700 mb-4'>
+          If you have any questions about these Terms of Service, please contact
+          us:
+        </p>
+        <ul className='text-gray-700 space-y-2'>
+          <li className='flex items-center'>
+            <Mail className='h-5 w-5 text-blue-600 mr-2' /> support@loanpro.com
+          </li>
+          <li className='flex items-center'>
+            <Phone className='h-5 w-5 text-blue-600 mr-2' /> +2519-555-1234
+          </li>
+        </ul>
       </div>
     </div>
   );

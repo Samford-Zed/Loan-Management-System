@@ -213,14 +213,14 @@ const LoanApplication: React.FC = () => {
                     name='duration'
                     value={formData.duration}
                     onChange={handleChange}
-                    min='3'
+                    min='6'
                     max='84'
                     required
                     className='w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
                     placeholder='Enter duration in months'
                   />
                   <p className='text-xs text-gray-500 mt-1'>
-                    Minimum: 3 months | Maximum: 84 months (7 years)
+                    Minimum: 6 months | Maximum: 84 months (7 years)
                   </p>
                 </div>
 
