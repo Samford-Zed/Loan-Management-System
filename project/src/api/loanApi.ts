@@ -1,6 +1,5 @@
 import api from "../lib/api";
 
-/** ---- Backend shapes (loose, nullable-safe) ---- */
 type ApiApplication = {
   id: number;
   accountNumber?: string | null;
@@ -16,7 +15,6 @@ type ApiApplication = {
 };
 
 type PendingItem = {
-  // Shape from GET /api/lms/loan/pending (if you use it)
   application?: {
     id: number;
     loanAmount?: string | number | null;
@@ -33,15 +31,15 @@ type PendingItem = {
   loanSummary?: unknown; // not used here
 };
 
-/** ---- UI shape ---- */
+
 export type LoanApplication = {
   id: string;
   customerName?: string;
   accountNumber: string;
   purpose: string;
-  amount: number; // parsed number
-  duration: number; // months
-  emi: number; // parsed number
+  amount: number; 
+  duration: number; 
+  emi: number; 
   status: "pending" | "approved" | "rejected";
   reason?: string | null;
   appliedDate?: string | null;
@@ -196,3 +194,4 @@ export async function fetchMyLoans(accountNumber: string): Promise<
     dueDate: l.dueDate ?? null,
   }));
 }
+
