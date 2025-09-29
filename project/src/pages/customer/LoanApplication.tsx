@@ -56,7 +56,7 @@ const LoanApplication: React.FC = () => {
     e.preventDefault();
     if (!user) return;
 
-    // Basic client-side guards
+    
     if (!agreedToTerms) {
       setSubmitError("Please agree to the Terms & Privacy Policy.");
       return;
