@@ -20,7 +20,7 @@ type RegisterData = {
 type AuthContextType = {
   user: AppUser | null;
   loading: boolean;
-  // keep role param for backward compatibility (ignored; role comes from backend)
+  
   login: (username: string, password: string, role?: Role) => Promise<boolean>;
   register: (data: RegisterData) => Promise<boolean>;
   logout: () => void;
@@ -72,7 +72,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     const res = await authLogin(username, password);
     if (!("ok" in res) || !res.ok) return false;
 
-    // auth.login already fetched /api/lms/profile and stored auth_user
     const raw = localStorage.getItem(LS_USER);
     setUser(raw ? (JSON.parse(raw) as AppUser) : null);
     return true;
@@ -88,7 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     setUser(null);
   };
 
-  /** Merge updates locally (useful after bank verification, etc.) */
   const updateUser = (partial: Partial<AppUser>) => {
     setUser((prev) => {
       if (!prev) return prev;
