@@ -1,7 +1,6 @@
-import api from "../lib/api"; // Protected: baseURL = http://localhost:8081/api/lms (+JWT via interceptor)
-import publicApi from "../lib/publicApi"; // Public: baseURL = http://localhost:8081
+import api from "../lib/api"; 
+import publicApi from "../lib/publicApi"; 
 
-/** === Backend shape from /api/lms/profile === */
 export type RawProfile = {
   id: number;
   fullName: string;
@@ -12,7 +11,6 @@ export type RawProfile = {
   bankAccountNumber?: string | null;
 };
 
-/** === App shape used by the UI === */
 export type AppUser = {
   id: string;
   fullName: string;
@@ -36,7 +34,6 @@ function mapProfile(p: RawProfile): AppUser {
   };
 }
 
-/** === LOGIN === */
 export async function login(
   username: string,
   password: string
@@ -47,7 +44,6 @@ export async function login(
       password,
     });
 
-    // Token can come from header or body; normalize
     const bearer = headers?.authorization ?? headers?.Authorization;
     const tokenFromHeader =
       typeof bearer === "string" && bearer.startsWith("Bearer ")
@@ -79,7 +75,6 @@ export async function login(
   }
 }
 
-/** === REGISTER === */
 export async function register(payload: {
   fullName: string;
   username: string;
@@ -90,21 +85,15 @@ export async function register(payload: {
   return { ok: true as const };
 }
 
-/** === FORGOT PASSWORD === */
 export async function forgotPassword(email: string) {
   return publicApi.post("/forgotPassword", { email });
 }
 
-/** === RESET PASSWORD === */
 export async function resetPassword(token: string, newPassword: string) {
   return publicApi.post("/resetPassword", { token, newPassword });
 }
 
-/**
- * === CHANGE PASSWORD (JWT required) ===
- * IMPORTANT: Backend endpoint is at the ROOT (/updatePassword), not under /api/lms.
- * We keep only two clients, so we use publicApi here and manually add the Authorization header.
- */
+
 export async function updatePassword(oldPassword: string, newPassword: string) {
   const token = localStorage.getItem("token");
   if (!token) throw new Error("Not authenticated");
@@ -116,7 +105,6 @@ export async function updatePassword(oldPassword: string, newPassword: string) {
   );
 }
 
-/** === Load current user from backend (JWT) === */
 export async function loadMe(): Promise<AppUser | null> {
   try {
     const { data } = await api.get<RawProfile>("/profile");
@@ -128,14 +116,13 @@ export async function loadMe(): Promise<AppUser | null> {
   }
 }
 
-/** === Logout === */
 export function logout() {
   localStorage.removeItem("token");
   localStorage.removeItem("auth_user");
 }
 
-/** === Read local user from localStorage === */
 export function getStoredUser(): AppUser | null {
   const raw = localStorage.getItem("auth_user");
   return raw ? (JSON.parse(raw) as AppUser) : null;
 }
+
