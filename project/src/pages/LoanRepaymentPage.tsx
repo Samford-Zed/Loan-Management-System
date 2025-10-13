@@ -1,9 +1,8 @@
-// src/pages/LoanRepaymentPage.tsx
 import React from "react";
 import RepayLoanForm from "../components/RepayLoanForm";
 
 const LoanRepaymentPage: React.FC = () => {
-  const accountNumber = "123456789"; // Ideally, get this from user context or loan data
+  const accountNumber = "123456789"; 
 
   return (
     <div className='max-w-md mx-auto mt-10'>
@@ -14,3 +13,4 @@ const LoanRepaymentPage: React.FC = () => {
 };
 
 export default LoanRepaymentPage;
+
