@@ -74,7 +74,7 @@ const Dashboard: React.FC<DashboardProps> = ({ showOnlyLoans = false }) => {
 
   const goToVerify = () => navigate("/link-account");
 
-  // Helper mapper from API -> UI
+
   const mapApp = (a: ApiLoanApplication): LoanApplication => ({
     id: a.id,
     purpose: a.purpose ?? "",
