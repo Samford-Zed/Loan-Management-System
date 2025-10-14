@@ -94,7 +94,6 @@ export const LoanProvider: React.FC<{ children: React.ReactNode }> = ({
   const [applications, setApplications] = useState<LoanApplication[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
 
-  // hydrate
   useEffect(() => {
     const rawA = localStorage.getItem(APPS_KEY);
     setApplications(rawA ? JSON.parse(rawA) : SEED);
@@ -103,7 +102,6 @@ export const LoanProvider: React.FC<{ children: React.ReactNode }> = ({
     setRepayments(rawR ? JSON.parse(rawR) : []);
   }, []);
 
-  // persist
   useEffect(() => {
     localStorage.setItem(APPS_KEY, JSON.stringify(applications));
   }, [applications]);
@@ -112,7 +110,6 @@ export const LoanProvider: React.FC<{ children: React.ReactNode }> = ({
     localStorage.setItem(REPAID_KEY, JSON.stringify(repayments));
   }, [repayments]);
 
-  // auto-approve new applications so Repay shows right away
   const addApplication = (
     data: Omit<LoanApplication, "id" | "status" | "appliedDate">
   ) => {
