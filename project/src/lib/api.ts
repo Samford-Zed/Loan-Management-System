@@ -4,7 +4,6 @@ const api = axios.create({
   baseURL: "http://localhost:8081/api/lms",
 });
 
-// ✅ Add token if exists
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem("token");
   if (token) {
@@ -14,3 +13,4 @@ api.interceptors.request.use((config) => {
 });
 
 export default api;
+
