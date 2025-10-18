@@ -4,7 +4,7 @@ import { useAuth } from "./contexts/AuthContext";
 import Layout from "./components/Layout/Layout";
 import ProtectedRoute from "./components/ProtectedRoute";
 
-// pages
+
 import Landing from "./pages/Landing";
 import Terms from "./pages/Terms";
 import Privacy from "./pages/Privacy";
