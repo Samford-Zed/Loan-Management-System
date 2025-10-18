@@ -16,7 +16,6 @@ export type PendingApplication = {
 
 const toNum = (v: number | string) => (typeof v === "number" ? v : Number(v));
 
-/** GET /loan/pending  (baseURL already has /api/lms) */
 export async function fetchPendingForAdmin(): Promise<
   Array<{
     id: number;
@@ -38,7 +37,6 @@ export async function fetchPendingForAdmin(): Promise<
   }));
 }
 
-/** POST /loan/approve?loanApplicationId=ID */
 export async function approveApplication(
   loanApplicationId: number
 ): Promise<string> {
@@ -57,3 +55,4 @@ export async function rejectApplication(
   });
   return typeof data === "string" ? data : "Application rejected";
 }
+
