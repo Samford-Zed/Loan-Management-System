@@ -45,7 +45,7 @@ export type LoanApplication = {
   appliedDate?: string | null;
 };
 
-/** ---- Helpers ---- */
+
 const toNum = (v: string | number | null | undefined) =>
   typeof v === "number" ? v : v ? Number(v) : 0;
 
@@ -194,4 +194,5 @@ export async function fetchMyLoans(accountNumber: string): Promise<
     dueDate: l.dueDate ?? null,
   }));
 }
+
 
