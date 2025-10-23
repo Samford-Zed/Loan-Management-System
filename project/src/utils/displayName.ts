@@ -17,9 +17,10 @@ export const displayName = (u?: AnyUser) => {
   const fromPair = `${first} ${last}`.trim();
   if (fromPair) return fromPair;
 
-  const single = (u.fullName ?? u.name ?? "").toString().trim();
+  const single = (u.fullName ??     u.name ?? "").toString().trim();
   if (single) return single;
 
   return (u.username ?? "User").toString().trim();
 };
+
 
