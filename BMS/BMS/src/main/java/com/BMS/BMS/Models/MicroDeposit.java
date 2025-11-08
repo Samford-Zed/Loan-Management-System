@@ -11,7 +11,7 @@ public class MicroDeposit {
     private Long id;
 
     private BigDecimal amount;
-    private String status; // PENDING_VERIFICATION, VERIFIED
+    private String status; // PENDING_VERIFICATION, VERIF
 
     @ManyToOne
     @JoinColumn(name = "customer_id")
@@ -38,3 +38,4 @@ public class MicroDeposit {
     public Customer getCustomer() { return customer; }
     public void setCustomer(Customer customer) { this.customer = customer; }
 }
+
