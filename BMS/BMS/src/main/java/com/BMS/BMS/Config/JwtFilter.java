@@ -31,7 +31,7 @@ public class JwtFilter extends OncePerRequestFilter {
             try {
                 Claims claims = jwtUtil.validateToken(authHeader);
 
-                // ✅ Set authentication in context
+                // ✅ Set authentication in contexts for front end
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(
                                 claims.getSubject(), null, Collections.emptyList()
@@ -52,3 +52,4 @@ public class JwtFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 }
+
