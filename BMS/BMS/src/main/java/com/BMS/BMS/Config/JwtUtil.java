@@ -13,7 +13,7 @@ import java.security.Key;
 @Component
 public class JwtUtil {
 
-   // @Value("${jwt.secret}")
+
     //private String secretKey;
     private static final String SECRET_KEY = "H5rT7k5G0hF2mPZqV8vM4w9aJ3pD1eLk2xYb0cQ1sR0=";
 
@@ -31,3 +31,4 @@ public class JwtUtil {
                 .getBody();
     }
 }
+
