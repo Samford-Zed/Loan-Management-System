@@ -46,7 +46,7 @@ export async function approveApplication(
   return typeof data === "string" ? data : "OK";
 }
 
-/** POST /loan/reject?loanApplicationId=ID   */
+/** POST /reject?loanApplicationId=ID   */
 export async function rejectApplication(
   loanApplicationId: number
 ): Promise<string> {
@@ -55,4 +55,5 @@ export async function rejectApplication(
   });
   return typeof data === "string" ? data : "Application rejected";
 }
+
 
