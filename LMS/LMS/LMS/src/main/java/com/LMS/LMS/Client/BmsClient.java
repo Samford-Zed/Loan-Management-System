@@ -25,7 +25,7 @@ public class BmsClient {
         return headers;
     }
 
-    // Verify account (micro deposit initiation)
+    // Verify account (micro deposit initial)
     public String verifyAccount(String accountNumber) {
         Map<String, String> body = new HashMap<>();
         body.put("accountNumber", accountNumber);
@@ -72,3 +72,4 @@ public class BmsClient {
         return response.getBody();
     }
 }
+
