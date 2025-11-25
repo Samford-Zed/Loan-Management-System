@@ -53,9 +53,10 @@ public class BankController {
         );
     }
     
-    /** ✅ Get Loan Summary (loanPaid, loanRemaining, totalLoan) */
+    /** ✅ Get Loan Summary (loanPaid, loanRemaining, total) */
     @GetMapping("/loan-summary/{accountNumber}")
     public LoanSummaryDTO getLoanSummary(@PathVariable String accountNumber) {
         return bankService.getLoanSummary(accountNumber);
     }
 }
+
